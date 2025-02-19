@@ -27,25 +27,25 @@ impl PartialOrd for Path {
     }
 }
 
-fn spf(start: usize, graph: &HashMap<usize, Vec<Link>>) -> HashMap<usize, Path> {
+fn spf_calc(start: usize, graph: &HashMap<usize, Vec<Link>>) -> HashMap<usize, Path> {
     let mut pq = BinaryHeap::new();
-    let mut shortest_paths: HashMap<usize, Path> = HashMap::new();
+    let mut spf: HashMap<usize, Path> = HashMap::new();
 
     pq.push(Path {
         node: start,
         cost: 0,
-        paths: vec![vec![start]],
+        paths: vec![vec![]],
     });
 
     while let Some(Path { node, cost, paths }) = pq.pop() {
-        if let Some(existing) = shortest_paths.get_mut(&node) {
+        if let Some(existing) = spf.get_mut(&node) {
             if existing.cost == cost {
                 existing.paths.extend(paths);
             }
             continue;
         }
 
-        shortest_paths.insert(
+        spf.insert(
             node,
             Path {
                 node,
@@ -72,7 +72,7 @@ fn spf(start: usize, graph: &HashMap<usize, Vec<Link>>) -> HashMap<usize, Path> 
         }
     }
 
-    shortest_paths
+    spf
 }
 
 fn main() {
@@ -161,7 +161,7 @@ fn main() {
         }],
     );
 
-    let result = spf(1, &graph);
+    let result = spf_calc(1, &graph);
 
     for (node, path) in &result {
         println!("Node: {} Cost: {} Paths: {:?}", node, path.cost, path.paths);
