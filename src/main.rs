@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Node {
@@ -61,25 +61,18 @@ impl Path {
     }
 }
 
-fn remove_first<T>(vec: &mut Vec<T>) -> Option<T> {
-    if vec.is_empty() {
-        return None;
-    }
-    Some(vec.remove(0))
-}
-
 pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
     let mut spf = HashMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
-    let mut vq = Vec::<Path>::new();
+    let mut bt = BTreeMap::<(u32, usize), Path>::new();
 
     let mut c = Path::new(root);
     c.paths.push(vec![root]);
 
     paths.insert(root, c.clone());
-    vq.push(c);
+    bt.insert((c.cost, root), c);
 
-    while let Some(v) = remove_first(&mut vq) {
+    while let Some((_, v)) = bt.pop_first() {
         spf.insert(v.id, v.clone());
 
         let Some(edge) = graph.get(&v.id) else {
@@ -88,6 +81,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
 
         for link in edge.links.iter() {
             let c = paths.entry(link.to).or_insert_with(|| Path::new(link.to));
+            let ocost = c.cost;
 
             if c.id == root {
                 continue;
@@ -98,7 +92,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
             }
 
             if c.cost != 0 && c.cost == v.cost + link.cost {
-                // Fall through.
+                // Fall through for ECMP.
             }
 
             if c.cost == 0 || c.cost > v.cost + link.cost {
@@ -119,16 +113,36 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
 
             if !c.registered {
                 c.registered = true;
+                bt.insert((c.cost, c.id), c.clone());
             } else {
-                if let Some(rem_index) = vq.iter().position(|x| x.id == c.id) {
-                    vq.remove(rem_index);
+                if ocost == c.cost {
+                    if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
+                        v.paths = c.paths.clone();
+                    }
+                } else {
+                    bt.remove(&(ocost, c.id));
+                    bt.insert((c.cost, c.id), c.clone());
                 }
             }
-            vq.push(c.clone());
-            vq.sort_by(|a, b| a.cost.cmp(&b.cost));
         }
     }
     spf
+}
+
+//  +---+ +---+ +---+ +---+
+//  | 0 |-| 1 |-|...|-|n-1|
+//  +---+ +---+ +---+ +---+
+//    |     |     |     |
+//  +---+ +---+ +---+ +---+
+//  | n |-|n+1|-|...|-|2n|
+//  +---+ +---+ +---+ +---+
+//    |     |     |     |
+//  +---+ +---+ +---+ +---+
+//  |Xn |-| 1 |-|...|-|   |
+//  +---+ +---+ +---+ +---+
+//
+pub fn bench(_n: usize) {
+    //
 }
 
 fn main() {
