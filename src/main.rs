@@ -141,11 +141,46 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn bench(_n: usize) {
-    //
+pub fn bench(n: usize, debug: bool) {
+    let mut graph = HashMap::new();
+    let mut nodes = vec![];
+    for i in 0..n {
+        for j in 0..n {
+            let id = (i * n) + j;
+            let mut node = Node::new(&id.to_string(), id);
+            // Vertical link: do not create vertical link for bottom row.
+            if i != n - 1 {
+                // Link from id to id + n.
+                let link = Link::new(id + n, 10);
+                node.links.push(link);
+            }
+            // Horisontal link: do not create horisontal link for most right column.
+            if j != n - 1 {
+                // Link from id to id + n.
+                let link = Link::new(id + 1, 10);
+                node.links.push(link);
+            }
+            nodes.push(node);
+        }
+    }
+
+    for node in nodes {
+        graph.insert(node.id, node);
+    }
+
+    let spf = spf(&graph, 0);
+
+    if debug {
+        for (node, path) in &spf {
+            println!("node: {}", node);
+            for p in &path.paths {
+                println!("  metric {} path {:?}", path.cost, p);
+            }
+        }
+    }
 }
 
-fn main() {
+pub fn ecmp() {
     let mut graph = HashMap::new();
     let mut nodes = vec![
         Node::new("N1", 0),
@@ -186,4 +221,8 @@ fn main() {
             println!("  metric {} path {:?}", path.cost, p);
         }
     }
+}
+
+fn main() {
+    bench(5, true);
 }
