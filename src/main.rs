@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::time;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Node {
@@ -47,6 +48,7 @@ pub struct Path {
     pub id: usize,
     pub cost: u32,
     pub paths: Vec<Vec<usize>>,
+    pub nexthops: HashSet<Vec<usize>>,
     pub registered: bool,
 }
 
@@ -56,18 +58,20 @@ impl Path {
             id,
             cost: 0,
             paths: Vec::new(),
+            nexthops: HashSet::new(),
             registered: false,
         }
     }
 }
 
-pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
+pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Path> {
     let mut spf = HashMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
 
     let mut c = Path::new(root);
     c.paths.push(vec![root]);
+    c.nexthops.insert(vec![root]);
 
     paths.insert(root, c.clone());
     bt.insert((c.cost, root), c);
@@ -75,7 +79,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
     while let Some((_, v)) = bt.pop_first() {
         spf.insert(v.id, v.clone());
 
-        let Some(edge) = graph.get(&v.id) else {
+        let Some(edge) = graph.get(v.id) else {
             continue;
         };
 
@@ -101,13 +105,28 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
             }
 
             if v.id == root {
-                let path = vec![root, c.id];
-                c.paths.push(path);
+                if full_path {
+                    let path = vec![root, c.id];
+                    c.paths.push(path);
+                } else {
+                    let nhop = vec![root, c.id];
+                    c.nexthops.insert(nhop);
+                }
             } else {
-                for path in v.paths.iter() {
-                    let mut newpath = path.clone();
-                    newpath.push(c.id);
-                    c.paths.push(newpath);
+                if full_path {
+                    for path in v.paths.iter() {
+                        let mut newpath = path.clone();
+                        newpath.push(c.id);
+                        c.paths.push(newpath);
+                    }
+                } else {
+                    for nhop in v.nexthops.iter() {
+                        let mut newnhop = nhop.clone();
+                        if nhop.len() < 2 {
+                            newnhop.push(c.id);
+                        }
+                        c.nexthops.insert(newnhop);
+                    }
                 }
             }
 
@@ -118,6 +137,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
                 if ocost == c.cost {
                     if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
                         v.paths = c.paths.clone();
+                        v.nexthops = c.nexthops.clone();
                     }
                 } else {
                     bt.remove(&(ocost, c.id));
@@ -141,9 +161,8 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn bench(n: usize, debug: bool) {
-    let mut graph = HashMap::new();
-    let mut nodes = vec![];
+pub fn bench(n: usize, full_path: bool, debug: bool) {
+    let mut graph = vec![];
     for i in 0..n {
         for j in 0..n {
             let id = (i * n) + j;
@@ -160,29 +179,21 @@ pub fn bench(n: usize, debug: bool) {
                 let link = Link::new(id + 1, 10);
                 node.links.push(link);
             }
-            nodes.push(node);
+            graph.push(node);
         }
     }
 
-    for node in nodes {
-        graph.insert(node.id, node);
-    }
-
-    let spf = spf(&graph, 0);
+    let now = time::Instant::now();
+    let spf = spf(&graph, 0, full_path);
+    println!("n:{} {:?}", n, now.elapsed());
 
     if debug {
-        for (node, path) in &spf {
-            println!("node: {}", node);
-            for p in &path.paths {
-                println!("  metric {} path {:?}", path.cost, p);
-            }
-        }
+        disp(&spf, full_path)
     }
 }
 
-pub fn ecmp() {
-    let mut graph = HashMap::new();
-    let mut nodes = vec![
+pub fn ecmp(full_path: bool, debug: bool) {
+    let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
         Node::new("N3", 2),
@@ -206,23 +217,40 @@ pub fn ecmp() {
     ];
 
     for (from, to, cost) in links {
-        nodes[from].links.push(Link::new(to, cost));
+        graph[from].links.push(Link::new(to, cost));
     }
 
-    for node in nodes {
-        graph.insert(node.id, node);
+    let now = time::Instant::now();
+    let spf = spf(&graph, 0, full_path);
+    println!("ecmp {:?}", now.elapsed());
+
+    if debug {
+        disp(&spf, full_path)
     }
+}
 
-    let spf = spf(&graph, 0);
-
-    for (node, path) in &spf {
-        println!("node: {}", node);
-        for p in &path.paths {
-            println!("  metric {} path {:?}", path.cost, p);
+pub fn disp(spf: &HashMap<usize, Path>, full_path: bool) {
+    if full_path {
+        for (node, path) in spf {
+            println!("node: {} nexthops: {}", node, path.paths.len());
+            for p in &path.paths {
+                println!("  metric {} path {:?}", path.cost, p);
+            }
+        }
+    } else {
+        for (node, nhops) in spf {
+            println!("node: {} nexthops: {}", node, nhops.nexthops.len());
+            for p in &nhops.nexthops {
+                println!("  metric {} path {:?}", nhops.cost, p);
+            }
         }
     }
 }
 
 fn main() {
-    bench(5, true);
+    let full_path = true;
+    let debug = true;
+
+    // bench(1000, full_path, debug);
+    ecmp(full_path, debug);
 }
