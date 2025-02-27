@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -48,7 +48,7 @@ pub struct Path {
     pub id: usize,
     pub cost: u32,
     pub paths: Vec<Vec<usize>>,
-    // pub pathx: HashSet<Vec<usize>>,
+    pub nexthops: HashSet<Vec<usize>>,
     pub registered: bool,
 }
 
@@ -58,6 +58,7 @@ impl Path {
             id,
             cost: 0,
             paths: Vec::new(),
+            nexthops: HashSet::new(),
             registered: false,
         }
     }
@@ -70,6 +71,7 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
 
     let mut c = Path::new(root);
     c.paths.push(vec![root]);
+    c.nexthops.insert(vec![root]);
 
     paths.insert(root, c.clone());
     bt.insert((c.cost, root), c);
@@ -103,13 +105,28 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
             }
 
             if v.id == root {
-                let path = vec![root, c.id];
-                c.paths.push(path);
+                if full_path {
+                    let path = vec![root, c.id];
+                    c.paths.push(path);
+                } else {
+                    let nhop = vec![root, c.id];
+                    c.nexthops.insert(nhop);
+                }
             } else {
-                for path in v.paths.iter() {
-                    let mut newpath = path.clone();
-                    newpath.push(c.id);
-                    c.paths.push(newpath);
+                if full_path {
+                    for path in v.paths.iter() {
+                        let mut newpath = path.clone();
+                        newpath.push(c.id);
+                        c.paths.push(newpath);
+                    }
+                } else {
+                    for nhop in v.nexthops.iter() {
+                        let mut newnhop = nhop.clone();
+                        if nhop.len() < 2 {
+                            newnhop.push(c.id);
+                        }
+                        c.nexthops.insert(newnhop);
+                    }
                 }
             }
 
@@ -120,6 +137,7 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
                 if ocost == c.cost {
                     if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
                         v.paths = c.paths.clone();
+                        v.nexthops = c.nexthops.clone();
                     }
                 } else {
                     bt.remove(&(ocost, c.id));
@@ -143,7 +161,7 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn bench(n: usize, full_path: bool, debug: bool) {
+pub fn bench(n: usize, full_path: bool) {
     let mut graph = vec![];
     for i in 0..n {
         for j in 0..n {
@@ -169,17 +187,24 @@ pub fn bench(n: usize, full_path: bool, debug: bool) {
     let spf = spf(&graph, 0, full_path);
     println!("n:{} {:?}", n, now.elapsed());
 
-    if debug {
+    if full_path {
         for (node, path) in &spf {
             println!("node: {} nexthops: {}", node, path.paths.len());
             for p in &path.paths {
                 println!("  metric {} path {:?}", path.cost, p);
             }
         }
+    } else {
+        for (node, nhops) in &spf {
+            println!("node: {} nexthops: {}", node, nhops.nexthops.len());
+            for p in &nhops.nexthops {
+                println!("  metric {} path {:?}", nhops.cost, p);
+            }
+        }
     }
 }
 
-pub fn ecmp() {
+pub fn ecmp(full_path: bool) {
     let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
@@ -207,17 +232,26 @@ pub fn ecmp() {
         graph[from].links.push(Link::new(to, cost));
     }
 
-    let spf = spf(&graph, 0, false);
+    let spf = spf(&graph, 0, full_path);
 
-    for (node, path) in &spf {
-        println!("node: {} nexthops: {}", node, path.paths.len());
-        for p in &path.paths {
-            println!("  metric {} path {:?}", path.cost, p);
+    if full_path {
+        for (node, path) in &spf {
+            println!("node: {} nexthops: {}", node, path.paths.len());
+            for p in &path.paths {
+                println!("  metric {} path {:?}", path.cost, p);
+            }
+        }
+    } else {
+        for (node, nhops) in &spf {
+            println!("node: {} nexthops: {}", node, nhops.nexthops.len());
+            for p in &nhops.nexthops {
+                println!("  metric {} path {:?}", nhops.cost, p);
+            }
         }
     }
 }
 
 fn main() {
-    // ecmp();
-    bench(3, false, true);
+    // ecmp(false);
+    bench(400, false);
 }
