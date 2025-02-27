@@ -48,6 +48,7 @@ pub struct Path {
     pub id: usize,
     pub cost: u32,
     pub paths: Vec<Vec<usize>>,
+    // pub pathx: HashSet<Vec<usize>>,
     pub registered: bool,
 }
 
@@ -62,7 +63,7 @@ impl Path {
     }
 }
 
-pub fn spf(graph: &Vec<Node>, root: usize) -> HashMap<usize, Path> {
+pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Path> {
     let mut spf = HashMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
@@ -107,8 +108,15 @@ pub fn spf(graph: &Vec<Node>, root: usize) -> HashMap<usize, Path> {
             } else {
                 for path in v.paths.iter() {
                     let mut newpath = path.clone();
-                    newpath.push(c.id);
-                    c.paths.push(newpath);
+                    if full_path {
+                        newpath.push(c.id);
+                    } else {
+                        if newpath.len() == 1 {
+                            newpath.push(c.id);
+                        }
+                        // If newpath is already in c.paths.
+                        c.paths.push(newpath);
+                    }
                 }
             }
 
@@ -142,7 +150,7 @@ pub fn spf(graph: &Vec<Node>, root: usize) -> HashMap<usize, Path> {
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn bench(n: usize, debug: bool) {
+pub fn bench(n: usize, full_path: bool, debug: bool) {
     let mut graph = vec![];
     for i in 0..n {
         for j in 0..n {
@@ -165,12 +173,12 @@ pub fn bench(n: usize, debug: bool) {
     }
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0);
+    let spf = spf(&graph, 0, full_path);
     println!("n:{} {:?}", n, now.elapsed());
 
     if debug {
         for (node, path) in &spf {
-            println!("node: {}", node);
+            println!("node: {} nexthops: {}", node, path.paths.len());
             for p in &path.paths {
                 println!("  metric {} path {:?}", path.cost, p);
             }
@@ -206,10 +214,10 @@ pub fn ecmp() {
         graph[from].links.push(Link::new(to, cost));
     }
 
-    let spf = spf(&graph, 0);
+    let spf = spf(&graph, 0, false);
 
     for (node, path) in &spf {
-        println!("node: {}", node);
+        println!("node: {} nexthops: {}", node, path.paths.len());
         for p in &path.paths {
             println!("  metric {} path {:?}", path.cost, p);
         }
@@ -218,5 +226,5 @@ pub fn ecmp() {
 
 fn main() {
     // ecmp();
-    bench(15, false);
+    bench(3, false, true);
 }
