@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::time;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Node {
@@ -61,7 +62,7 @@ impl Path {
     }
 }
 
-pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
+pub fn spf(graph: &Vec<Node>, root: usize) -> HashMap<usize, Path> {
     let mut spf = HashMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
@@ -75,7 +76,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
     while let Some((_, v)) = bt.pop_first() {
         spf.insert(v.id, v.clone());
 
-        let Some(edge) = graph.get(&v.id) else {
+        let Some(edge) = graph.get(v.id) else {
             continue;
         };
 
@@ -142,8 +143,7 @@ pub fn spf(graph: &HashMap<usize, Node>, root: usize) -> HashMap<usize, Path> {
 //  +---+ +---+ +---+ +---+
 //
 pub fn bench(n: usize, debug: bool) {
-    let mut graph = HashMap::new();
-    let mut nodes = vec![];
+    let mut graph = vec![];
     for i in 0..n {
         for j in 0..n {
             let id = (i * n) + j;
@@ -160,15 +160,13 @@ pub fn bench(n: usize, debug: bool) {
                 let link = Link::new(id + 1, 10);
                 node.links.push(link);
             }
-            nodes.push(node);
+            graph.push(node);
         }
     }
 
-    for node in nodes {
-        graph.insert(node.id, node);
-    }
-
+    let now = time::Instant::now();
     let spf = spf(&graph, 0);
+    println!("n:{} {:?}", n, now.elapsed());
 
     if debug {
         for (node, path) in &spf {
@@ -181,8 +179,7 @@ pub fn bench(n: usize, debug: bool) {
 }
 
 pub fn ecmp() {
-    let mut graph = HashMap::new();
-    let mut nodes = vec![
+    let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
         Node::new("N3", 2),
@@ -206,11 +203,7 @@ pub fn ecmp() {
     ];
 
     for (from, to, cost) in links {
-        nodes[from].links.push(Link::new(to, cost));
-    }
-
-    for node in nodes {
-        graph.insert(node.id, node);
+        graph[from].links.push(Link::new(to, cost));
     }
 
     let spf = spf(&graph, 0);
@@ -224,5 +217,6 @@ pub fn ecmp() {
 }
 
 fn main() {
-    bench(5, true);
+    // ecmp();
+    bench(15, false);
 }
