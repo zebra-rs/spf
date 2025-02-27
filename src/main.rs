@@ -108,15 +108,8 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
             } else {
                 for path in v.paths.iter() {
                     let mut newpath = path.clone();
-                    if full_path {
-                        newpath.push(c.id);
-                    } else {
-                        if newpath.len() == 1 {
-                            newpath.push(c.id);
-                        }
-                        // If newpath is already in c.paths.
-                        c.paths.push(newpath);
-                    }
+                    newpath.push(c.id);
+                    c.paths.push(newpath);
                 }
             }
 
