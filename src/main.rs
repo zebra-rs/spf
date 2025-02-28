@@ -21,13 +21,14 @@ impl Node {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Link {
+    pub from: usize,
     pub to: usize,
     pub cost: u32,
 }
 
 impl Link {
     pub fn new(to: usize, cost: u32) -> Self {
-        Self { to, cost }
+        Self { from: 0, to, cost }
     }
 }
 
@@ -110,6 +111,93 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
                     c.paths.push(path);
                 } else {
                     let nhop = vec![root, c.id];
+                    c.nexthops.insert(nhop);
+                }
+            } else {
+                if full_path {
+                    for path in v.paths.iter() {
+                        let mut newpath = path.clone();
+                        newpath.push(c.id);
+                        c.paths.push(newpath);
+                    }
+                } else {
+                    for nhop in v.nexthops.iter() {
+                        let mut newnhop = nhop.clone();
+                        if nhop.len() < 2 {
+                            newnhop.push(c.id);
+                        }
+                        c.nexthops.insert(newnhop);
+                    }
+                }
+            }
+
+            if !c.registered {
+                c.registered = true;
+                bt.insert((c.cost, c.id), c.clone());
+            } else {
+                if ocost == c.cost {
+                    if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
+                        v.paths = c.paths.clone();
+                        v.nexthops = c.nexthops.clone();
+                    }
+                } else {
+                    bt.remove(&(ocost, c.id));
+                    bt.insert((c.cost, c.id), c.clone());
+                }
+            }
+        }
+    }
+    spf
+}
+
+pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> HashMap<usize, Path> {
+    let mut spf = HashMap::<usize, Path>::new();
+    let mut paths = HashMap::<usize, Path>::new();
+    let mut bt = BTreeMap::<(u32, usize), Path>::new();
+
+    let mut c = Path::new(dest);
+    c.paths.push(vec![dest]);
+    c.nexthops.insert(vec![dest]);
+
+    paths.insert(dest, c.clone());
+    bt.insert((c.cost, dest), c);
+
+    while let Some((_, v)) = bt.pop_first() {
+        spf.insert(v.id, v.clone());
+
+        let Some(edge) = graph.get(v.id) else {
+            continue;
+        };
+
+        for link in edge.links.iter() {
+            let c = paths
+                .entry(link.from)
+                .or_insert_with(|| Path::new(link.from));
+            let ocost = c.cost;
+
+            if c.id == dest {
+                continue;
+            }
+
+            if c.cost != 0 && c.cost < v.cost + link.cost {
+                continue;
+            }
+
+            if c.cost != 0 && c.cost == v.cost + link.cost {
+                // Fall through for ECMP.
+            }
+
+            if c.cost == 0 || c.cost > v.cost + link.cost {
+                c.cost = v.cost.saturating_add(link.cost);
+                c.paths.clear();
+            }
+
+            if v.id == dest {
+                if full_path {
+                    let path = vec![dest, c.id];
+                    c.paths.push(path);
+                } else {
+                    let nhop = vec![dest, c.id];
                     c.nexthops.insert(nhop);
                 }
             } else {
