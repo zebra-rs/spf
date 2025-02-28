@@ -6,7 +6,8 @@ use std::time;
 pub struct Node {
     pub id: usize,
     pub name: String,
-    pub links: Vec<Link>,
+    pub olinks: Vec<Link>,
+    pub ilinks: Vec<Link>,
 }
 
 impl Node {
@@ -14,7 +15,8 @@ impl Node {
         Self {
             id,
             name: name.into(),
-            links: Vec::new(),
+            olinks: Vec::new(),
+            ilinks: Vec::new(),
         }
     }
 }
@@ -84,7 +86,7 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Pa
             continue;
         };
 
-        for link in edge.links.iter() {
+        for link in edge.olinks.iter() {
             let c = paths.entry(link.to).or_insert_with(|| Path::new(link.to));
             let ocost = c.cost;
 
@@ -169,7 +171,7 @@ pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> HashMap<u
             continue;
         };
 
-        for link in edge.links.iter() {
+        for link in edge.ilinks.iter() {
             let c = paths
                 .entry(link.from)
                 .or_insert_with(|| Path::new(link.from));
@@ -259,13 +261,13 @@ pub fn bench(n: usize, full_path: bool, debug: bool) {
             if i != n - 1 {
                 // Link from id to id + n.
                 let link = Link::new(id + n, 10);
-                node.links.push(link);
+                node.olinks.push(link);
             }
             // Horisontal link: do not create horisontal link for most right column.
             if j != n - 1 {
                 // Link from id to id + n.
                 let link = Link::new(id + 1, 10);
-                node.links.push(link);
+                node.olinks.push(link);
             }
             graph.push(node);
         }
@@ -305,7 +307,7 @@ pub fn ecmp(full_path: bool, debug: bool) {
     ];
 
     for (from, to, cost) in links {
-        graph[from].links.push(Link::new(to, cost));
+        graph[from].olinks.push(Link::new(to, cost));
     }
 
     let now = time::Instant::now();
