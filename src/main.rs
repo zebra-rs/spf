@@ -348,7 +348,7 @@ pub fn tilfa(full_path: bool, debug: bool) {
 
     let now = time::Instant::now();
     let spf = spf(&graph, 0, full_path);
-    println!("ecmp {:?}", now.elapsed());
+    println!("tilfa {:?}", now.elapsed());
 
     if debug {
         disp(&spf, full_path)
