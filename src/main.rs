@@ -401,8 +401,6 @@ pub fn tilfa(_full_path: bool, _debug: bool) {
     let q_nodes = q_space_nodes(&graph, 2, 0);
     println!("P: {:?}", p_nodes);
     println!("Q: {:?}", q_nodes);
-
-    //println!("tilfa {:?}", now.elapsed());
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
