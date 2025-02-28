@@ -67,8 +67,8 @@ impl Path {
     }
 }
 
-pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> HashMap<usize, Path> {
-    let mut spf = HashMap::<usize, Path>::new();
+pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, Path> {
+    let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
 
@@ -239,6 +239,56 @@ pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> HashMap<u
     spf
 }
 
+pub fn p_space_nodes(graph: &Vec<Node>, root: usize, x: usize) -> Vec<usize> {
+    let mut nodes = Vec::<usize>::new();
+
+    let spf = spf(graph, root, true);
+
+    for (node, path) in spf.iter() {
+        if *node == root {
+            continue;
+        }
+        let mut found_x = false;
+        for path in &path.paths {
+            for p in path.iter() {
+                if *p == x {
+                    found_x = true;
+                }
+            }
+        }
+        if !found_x {
+            nodes.push(*node);
+        }
+    }
+
+    nodes
+}
+
+pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
+    let mut nodes = Vec::<usize>::new();
+
+    let spf = spf_reverse(graph, d, true);
+
+    for (node, path) in spf.iter() {
+        if *node == d {
+            continue;
+        }
+        let mut found_x = false;
+        for path in &path.paths {
+            for p in path.iter() {
+                if *p == x {
+                    found_x = true;
+                }
+            }
+        }
+        if !found_x {
+            nodes.push(*node);
+        }
+    }
+
+    nodes
+}
+
 //  +---+ +---+ +---+ +---+
 //  | 0 |-| 1 |-|...|-|n-1|
 //  +---+ +---+ +---+ +---+
@@ -319,7 +369,7 @@ pub fn ecmp(full_path: bool, debug: bool) {
     }
 }
 
-pub fn tilfa(full_path: bool, debug: bool) {
+pub fn tilfa(_full_path: bool, _debug: bool) {
     let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
@@ -346,16 +396,16 @@ pub fn tilfa(full_path: bool, debug: bool) {
         graph[to].ilinks.push(Link::new(from, to, cost));
     }
 
-    let now = time::Instant::now();
-    let spf = spf(&graph, 0, full_path);
-    println!("tilfa {:?}", now.elapsed());
+    //let now = time::Instant::now();
+    let p_nodes = p_space_nodes(&graph, 0, 2);
+    // let q_nodes = q_space_nodes(&graph, 4, 2);
+    println!("P: {:?}", p_nodes);
+    // println!("Q: {:?}", q_nodes);
 
-    if debug {
-        disp(&spf, full_path)
-    }
+    //println!("tilfa {:?}", now.elapsed());
 }
 
-pub fn disp(spf: &HashMap<usize, Path>, full_path: bool) {
+pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
     if full_path {
         for (node, path) in spf {
             println!("node: {} nexthops: {}", node, path.paths.len());
