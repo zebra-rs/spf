@@ -29,8 +29,8 @@ pub struct Link {
 }
 
 impl Link {
-    pub fn new(to: usize, cost: u32) -> Self {
-        Self { from: 0, to, cost }
+    pub fn new(from: usize, to: usize, cost: u32) -> Self {
+        Self { from, to, cost }
     }
 }
 
@@ -260,13 +260,13 @@ pub fn bench(n: usize, full_path: bool, debug: bool) {
             // Vertical link: do not create vertical link for bottom row.
             if i != n - 1 {
                 // Link from id to id + n.
-                let link = Link::new(id + n, 10);
+                let link = Link::new(id, id + n, 10);
                 node.olinks.push(link);
             }
             // Horisontal link: do not create horisontal link for most right column.
             if j != n - 1 {
                 // Link from id to id + n.
-                let link = Link::new(id + 1, 10);
+                let link = Link::new(id, id + 1, 10);
                 node.olinks.push(link);
             }
             graph.push(node);
@@ -307,7 +307,43 @@ pub fn ecmp(full_path: bool, debug: bool) {
     ];
 
     for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(to, cost));
+        graph[from].olinks.push(Link::new(from, to, cost));
+    }
+
+    let now = time::Instant::now();
+    let spf = spf(&graph, 0, full_path);
+    println!("ecmp {:?}", now.elapsed());
+
+    if debug {
+        disp(&spf, full_path)
+    }
+}
+
+pub fn tilfa(full_path: bool, debug: bool) {
+    let mut graph = vec![
+        Node::new("N1", 0),
+        Node::new("N2", 1),
+        Node::new("N3", 2),
+        Node::new("N4", 3),
+        Node::new("N5", 4),
+    ];
+
+    let links = vec![
+        (0, 1, 10),
+        (0, 2, 10),
+        (1, 0, 10),
+        (1, 3, 10),
+        (2, 0, 10),
+        (2, 4, 10),
+        (3, 1, 10),
+        (3, 4, 10),
+        (4, 2, 10),
+        (4, 3, 10),
+    ];
+
+    for (from, to, cost) in links {
+        graph[from].olinks.push(Link::new(from, to, cost));
+        graph[to].ilinks.push(Link::new(from, to, cost));
     }
 
     let now = time::Instant::now();
@@ -342,5 +378,6 @@ fn main() {
     let debug = true;
 
     // bench(1000, full_path, debug);
-    ecmp(full_path, debug);
+    // ecmp(full_path, debug);
+    tilfa(full_path, debug);
 }
