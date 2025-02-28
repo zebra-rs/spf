@@ -152,8 +152,8 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, P
     spf
 }
 
-pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> HashMap<usize, Path> {
-    let mut spf = HashMap::<usize, Path>::new();
+pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> BTreeMap<usize, Path> {
+    let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
 
@@ -386,9 +386,9 @@ pub fn tilfa(_full_path: bool, _debug: bool) {
         (2, 0, 10),
         (2, 4, 10),
         (3, 1, 10),
-        (3, 4, 10),
+        (3, 4, 50),
         (4, 2, 10),
-        (4, 3, 10),
+        (4, 3, 50),
     ];
 
     for (from, to, cost) in links {
@@ -398,9 +398,9 @@ pub fn tilfa(_full_path: bool, _debug: bool) {
 
     //let now = time::Instant::now();
     let p_nodes = p_space_nodes(&graph, 0, 2);
-    // let q_nodes = q_space_nodes(&graph, 4, 2);
+    let q_nodes = q_space_nodes(&graph, 2, 0);
     println!("P: {:?}", p_nodes);
-    // println!("Q: {:?}", q_nodes);
+    println!("Q: {:?}", q_nodes);
 
     //println!("tilfa {:?}", now.elapsed());
 }
