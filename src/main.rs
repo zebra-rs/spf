@@ -2,12 +2,13 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
     pub id: usize,
     pub name: String,
     pub olinks: Vec<Link>,
     pub ilinks: Vec<Link>,
+    pub is_disabled: bool,
 }
 
 impl Node {
@@ -17,11 +18,12 @@ impl Node {
             name: name.into(),
             olinks: Vec::new(),
             ilinks: Vec::new(),
+            is_disabled: false,
         }
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Link {
     pub from: usize,
     pub to: usize,
@@ -86,7 +88,17 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, P
             continue;
         };
 
+        if edge.is_disabled {
+            continue;
+        }
+
         for link in edge.olinks.iter() {
+            if let Some(x) = graph.get(link.to) {
+                if x.is_disabled {
+                    continue;
+                }
+            };
+
             let c = paths.entry(link.to).or_insert_with(|| Path::new(link.to));
             let ocost = c.cost;
 
@@ -369,6 +381,14 @@ pub fn ecmp(full_path: bool, debug: bool) {
     }
 }
 
+pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Option<Path> {
+    let mut pc_graph = graph.clone();
+    let node = pc_graph.get_mut(x).unwrap();
+    node.is_disabled = true;
+    let mut pc_spf = spf(&pc_graph, 0, true);
+    pc_spf.remove(&d)
+}
+
 pub fn tilfa(_full_path: bool, _debug: bool) {
     let mut graph = vec![
         Node::new("N1", 0),
@@ -399,8 +419,11 @@ pub fn tilfa(_full_path: bool, _debug: bool) {
     //let now = time::Instant::now();
     let p_nodes = p_space_nodes(&graph, 0, 2);
     let q_nodes = q_space_nodes(&graph, 2, 0);
+    let pc_path = pc_path(&graph, 4, 2).unwrap();
+
     println!("P: {:?}", p_nodes);
     println!("Q: {:?}", q_nodes);
+    println!("PCPath: {:?}", pc_path);
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
