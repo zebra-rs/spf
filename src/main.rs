@@ -343,14 +343,16 @@ pub fn ecmp(opt: &SpfOpt) {
     disp(&spf, opt.full_path)
 }
 
-pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
-    let mut pc_graph = graph.clone();
-    let node = pc_graph.get_mut(x).unwrap();
-    node.is_disabled = true;
-    let mut pc_spf = spf_normal(&pc_graph, 0, true, 0);
+pub fn pc_paths(graph: &Graph, s: usize, d: usize, x: usize) -> Vec<Vec<usize>> {
+    let mut pc_graph: Vec<Node> = graph.to_owned(); // Clone only when necessary
 
-    let mut pc_path = pc_spf.remove(&d).unwrap();
-    pc_path.paths.remove(0)
+    if let Some(x_node) = pc_graph.get_mut(x) {
+        x_node.is_disabled = true;
+    }
+
+    spf_normal(&pc_graph, s, true, 0)
+        .remove(&d)
+        .map_or_else(Vec::new, |data| data.paths)
 }
 
 #[derive(Default)]
@@ -417,18 +419,26 @@ pub fn tilfa_graph() -> Vec<Node> {
     graph
 }
 
+// Find deepest node in pc_path.
+pub fn intersect(nodes: &Vec<usize>, pc_paths: &Vec<usize>) -> Vec<usize> {
+    let mut intersects = Vec::new();
+    for pc_path in pc_paths {
+        if nodes.contains(pc_path) {
+            intersects.push(*pc_path);
+        }
+    }
+    intersects
+}
+
 pub fn tilfa(_opt: &SpfOpt) {
     let graph = tilfa_graph();
     let s = 0;
     let d = 7;
     let x = 1;
 
-    // Normal SPF
-    // let spt = spf_normal(&graph, 0, opt.full_path, opt.path_max);
-
     let p_nodes = p_space_nodes(&graph, s, x);
     let q_nodes = q_space_nodes(&graph, d, x);
-    // let pc_path = pc_path(&graph, s, d);
+    let mut pc_paths = pc_paths(&graph, s, d, x);
 
     // P
     print!("P:");
@@ -439,6 +449,7 @@ pub fn tilfa(_opt: &SpfOpt) {
         print!(" {}", name);
     }
     println!();
+
     // Q
     print!("Q:");
     for name in q_nodes
@@ -448,6 +459,25 @@ pub fn tilfa(_opt: &SpfOpt) {
         print!(" {}", name);
     }
     println!();
+
+    // PCPath.
+    print!("PCPath:");
+    for path in &mut pc_paths {
+        path.remove(0);
+        for name in path.iter().filter_map(|q| graph.get(*q).map(|n| &n.name)) {
+            print!(" {}", name);
+        }
+    }
+    println!();
+
+    for pc_path in &pc_paths {
+        let p_intersect = intersect(&p_nodes, &pc_path);
+        let q_intersect = intersect(&q_nodes, &pc_path);
+        println!("P-intersects: {:?}", p_intersect);
+        println!("Q-intersects: {:?}", q_intersect);
+        let pq_intersect = intersect(&p_intersect, &q_intersect);
+        println!("PQ-intersects: {:?}", pq_intersect);
+    }
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
@@ -468,7 +498,7 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
     }
 }
 
-pub fn intersect(sa: &Vec<usize>, sb: &Vec<usize>, sc: &Vec<usize>) -> Vec<usize> {
+pub fn intersect_old(sa: &Vec<usize>, sb: &Vec<usize>, sc: &Vec<usize>) -> Vec<usize> {
     let mut result = Vec::new();
 
     for na in sa {
@@ -488,12 +518,12 @@ pub fn intersect(sa: &Vec<usize>, sb: &Vec<usize>, sc: &Vec<usize>) -> Vec<usize
 
 pub fn intersect_test() {
     // Example test case
-    let sa = vec![1, 2, 3];
-    let sb = vec![2, 3, 4];
-    let sc = vec![3, 4, 5];
+    let _sa = vec![1, 2, 3];
+    let _sb = vec![2, 3, 4];
+    let _sc = vec![3, 4, 5];
 
-    let intersection = intersect(&sa, &sb, &sc);
-    println!("{:?}", intersection);
+    // let intersection = intersect(&sa, &sb, &sc);
+    // println!("{:?}", intersection);
 }
 
 fn main() {
