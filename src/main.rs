@@ -75,7 +75,7 @@ pub fn spf(
     graph: &Vec<Node>,
     root: usize,
     full_path: bool,
-    ecmp_max: usize,
+    path_max: usize,
 ) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
@@ -136,16 +136,16 @@ pub fn spf(
                 }
             } else {
                 if full_path {
-                    if ecmp_max == 0 || c.paths.len() < ecmp_max {
-                        for path in v.paths.iter() {
+                    for path in v.paths.iter() {
+                        if path_max == 0 || c.paths.len() < path_max {
                             let mut newpath = path.clone();
                             newpath.push(c.id);
                             c.paths.push(newpath);
                         }
                     }
                 } else {
-                    if ecmp_max == 0 || c.nexthops.len() < ecmp_max {
-                        for nhop in v.nexthops.iter() {
+                    for nhop in v.nexthops.iter() {
+                        if path_max == 0 || c.nexthops.len() < path_max {
                             let mut newnhop = nhop.clone();
                             if nhop.len() < 2 {
                                 newnhop.push(c.id);
@@ -179,7 +179,7 @@ pub fn spf_reverse(
     graph: &Vec<Node>,
     dest: usize,
     full_path: bool,
-    ecmp_max: usize,
+    path_max: usize,
 ) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
@@ -232,16 +232,16 @@ pub fn spf_reverse(
                 }
             } else {
                 if full_path {
-                    if ecmp_max == 0 || c.paths.len() < ecmp_max {
-                        for path in v.paths.iter() {
+                    for path in v.paths.iter() {
+                        if path_max == 0 || c.paths.len() < path_max {
                             let mut newpath = path.clone();
                             newpath.push(c.id);
                             c.paths.push(newpath);
                         }
                     }
                 } else {
-                    if ecmp_max == 0 || c.nexthops.len() < ecmp_max {
-                        for nhop in v.nexthops.iter() {
+                    for nhop in v.nexthops.iter() {
+                        if path_max == 0 || c.nexthops.len() < path_max {
                             let mut newnhop = nhop.clone();
                             if nhop.len() < 2 {
                                 newnhop.push(c.id);
@@ -356,7 +356,7 @@ pub fn bench(n: usize, opt: &SpfOpt) {
     }
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, opt.full_path, opt.ecmp_max);
+    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
     println!("n:{} {:?}", n, now.elapsed());
 
     disp(&spf, opt.full_path)
@@ -396,7 +396,7 @@ pub fn ecmp(opt: &SpfOpt) {
     let graph = ecmp_topology();
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, opt.full_path, opt.ecmp_max);
+    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
     println!("ecmp {:?}", now.elapsed());
 
     disp(&spf, opt.full_path)
@@ -444,7 +444,7 @@ pub fn tilfa_graph() -> Vec<Node> {
 #[derive(Default)]
 pub struct SpfOpt {
     pub full_path: bool,
-    pub ecmp_max: usize,
+    pub path_max: usize,
 }
 
 impl SpfOpt {
@@ -458,7 +458,7 @@ pub fn tilfa(opt: &SpfOpt) {
     let s = 0;
 
     // SPF
-    let spt = spf(&graph, 0, opt.full_path, opt.ecmp_max);
+    let spt = spf(&graph, 0, opt.full_path, opt.path_max);
 
     for (d, spf_path) in spt.iter() {
         // Skip root node.
@@ -532,7 +532,7 @@ pub fn intersect_test() {
 fn main() {
     let opt = SpfOpt {
         full_path: true,
-        ecmp_max: 32,
+        path_max: 32,
     };
     //ecmp(&opt);
     bench(20, &opt);
