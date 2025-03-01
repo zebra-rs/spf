@@ -261,8 +261,11 @@ pub fn spf_reverse(
             } else {
                 if ocost == c.cost {
                     if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
-                        v.paths = c.paths.clone();
-                        v.nexthops = c.nexthops.clone();
+                        if full_path {
+                            v.paths = c.paths.clone();
+                        } else {
+                            v.nexthops = c.nexthops.clone();
+                        }
                     }
                 } else {
                     bt.remove(&(ocost, c.id));
