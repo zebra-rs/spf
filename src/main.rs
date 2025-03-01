@@ -426,7 +426,7 @@ pub struct Intersect {
     pub q: bool,
 }
 
-// Find deepest node in pc_path.
+// Intersect with P and Q.
 pub fn intersect(
     pc_path: &Vec<usize>,
     p_nodes: &HashSet<usize>,
