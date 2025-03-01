@@ -2,6 +2,8 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time;
 
+type Graph = Vec<Node>;
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
     pub id: usize,
@@ -69,7 +71,12 @@ impl Path {
     }
 }
 
-pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, Path> {
+pub fn spf(
+    graph: &Vec<Node>,
+    root: usize,
+    full_path: bool,
+    ecmp_max: usize,
+) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
@@ -129,18 +136,22 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, P
                 }
             } else {
                 if full_path {
-                    for path in v.paths.iter() {
-                        let mut newpath = path.clone();
-                        newpath.push(c.id);
-                        c.paths.push(newpath);
+                    if ecmp_max == 0 || c.paths.len() < ecmp_max {
+                        for path in v.paths.iter() {
+                            let mut newpath = path.clone();
+                            newpath.push(c.id);
+                            c.paths.push(newpath);
+                        }
                     }
                 } else {
-                    for nhop in v.nexthops.iter() {
-                        let mut newnhop = nhop.clone();
-                        if nhop.len() < 2 {
-                            newnhop.push(c.id);
+                    if ecmp_max == 0 || c.nexthops.len() < ecmp_max {
+                        for nhop in v.nexthops.iter() {
+                            let mut newnhop = nhop.clone();
+                            if nhop.len() < 2 {
+                                newnhop.push(c.id);
+                            }
+                            c.nexthops.insert(newnhop);
                         }
-                        c.nexthops.insert(newnhop);
                     }
                 }
             }
@@ -164,7 +175,12 @@ pub fn spf(graph: &Vec<Node>, root: usize, full_path: bool) -> BTreeMap<usize, P
     spf
 }
 
-pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> BTreeMap<usize, Path> {
+pub fn spf_reverse(
+    graph: &Vec<Node>,
+    dest: usize,
+    full_path: bool,
+    ecmp_max: usize,
+) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
@@ -216,18 +232,22 @@ pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> BTreeMap<
                 }
             } else {
                 if full_path {
-                    for path in v.paths.iter() {
-                        let mut newpath = path.clone();
-                        newpath.push(c.id);
-                        c.paths.push(newpath);
+                    if ecmp_max == 0 || c.paths.len() < ecmp_max {
+                        for path in v.paths.iter() {
+                            let mut newpath = path.clone();
+                            newpath.push(c.id);
+                            c.paths.push(newpath);
+                        }
                     }
                 } else {
-                    for nhop in v.nexthops.iter() {
-                        let mut newnhop = nhop.clone();
-                        if nhop.len() < 2 {
-                            newnhop.push(c.id);
+                    if ecmp_max == 0 || c.nexthops.len() < ecmp_max {
+                        for nhop in v.nexthops.iter() {
+                            let mut newnhop = nhop.clone();
+                            if nhop.len() < 2 {
+                                newnhop.push(c.id);
+                            }
+                            c.nexthops.insert(newnhop);
                         }
-                        c.nexthops.insert(newnhop);
                     }
                 }
             }
@@ -254,7 +274,7 @@ pub fn spf_reverse(graph: &Vec<Node>, dest: usize, full_path: bool) -> BTreeMap<
 pub fn p_space_nodes(graph: &Vec<Node>, root: usize, x: usize) -> Vec<usize> {
     let mut nodes = Vec::<usize>::new();
 
-    let spf = spf(graph, root, true);
+    let spf = spf(graph, root, true, 0);
 
     for (node, path) in spf.iter() {
         if *node == root {
@@ -279,7 +299,7 @@ pub fn p_space_nodes(graph: &Vec<Node>, root: usize, x: usize) -> Vec<usize> {
 pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
     let mut nodes = Vec::<usize>::new();
 
-    let spf = spf_reverse(graph, d, true);
+    let spf = spf_reverse(graph, d, true, 0);
 
     for (node, path) in spf.iter() {
         if *node == d {
@@ -313,7 +333,7 @@ pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn bench(n: usize, full_path: bool, debug: bool) {
+pub fn bench(n: usize, opt: &SpfOpt) {
     let mut graph = vec![];
     for i in 0..n {
         for j in 0..n {
@@ -336,15 +356,13 @@ pub fn bench(n: usize, full_path: bool, debug: bool) {
     }
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, full_path);
+    let spf = spf(&graph, 0, opt.full_path, opt.ecmp_max);
     println!("n:{} {:?}", n, now.elapsed());
 
-    if debug {
-        disp(&spf, full_path)
-    }
+    disp(&spf, opt.full_path)
 }
 
-pub fn ecmp(full_path: bool, debug: bool) {
+pub fn ecmp_topology() -> Graph {
     let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
@@ -371,25 +389,30 @@ pub fn ecmp(full_path: bool, debug: bool) {
     for (from, to, cost) in links {
         graph[from].olinks.push(Link::new(from, to, cost));
     }
-
-    let now = time::Instant::now();
-    let spf = spf(&graph, 0, full_path);
-    println!("ecmp {:?}", now.elapsed());
-
-    if debug {
-        disp(&spf, full_path)
-    }
+    graph
 }
 
-pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Option<Path> {
+pub fn ecmp(opt: &SpfOpt) {
+    let graph = ecmp_topology();
+
+    let now = time::Instant::now();
+    let spf = spf(&graph, 0, opt.full_path, opt.ecmp_max);
+    println!("ecmp {:?}", now.elapsed());
+
+    disp(&spf, opt.full_path)
+}
+
+pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
     let mut pc_graph = graph.clone();
     let node = pc_graph.get_mut(x).unwrap();
     node.is_disabled = true;
-    let mut pc_spf = spf(&pc_graph, 0, true);
-    pc_spf.remove(&d)
+    let mut pc_spf = spf(&pc_graph, 0, true, 0);
+
+    let mut pc_path = pc_spf.remove(&d).unwrap();
+    pc_path.paths.remove(0)
 }
 
-pub fn tilfa(_full_path: bool, _debug: bool) {
+pub fn tilfa_graph() -> Vec<Node> {
     let mut graph = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
@@ -415,15 +438,49 @@ pub fn tilfa(_full_path: bool, _debug: bool) {
         graph[from].olinks.push(Link::new(from, to, cost));
         graph[to].ilinks.push(Link::new(from, to, cost));
     }
+    graph
+}
 
-    //let now = time::Instant::now();
-    let p_nodes = p_space_nodes(&graph, 0, 2);
-    let q_nodes = q_space_nodes(&graph, 2, 0);
-    let pc_path = pc_path(&graph, 4, 2).unwrap();
+#[derive(Default)]
+pub struct SpfOpt {
+    pub full_path: bool,
+    pub ecmp_max: usize,
+}
 
-    println!("P: {:?}", p_nodes);
-    println!("Q: {:?}", q_nodes);
-    println!("PCPath: {:?}", pc_path);
+impl SpfOpt {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+pub fn tilfa(opt: &SpfOpt) {
+    let graph = tilfa_graph();
+    let s = 0;
+
+    // SPF
+    let spt = spf(&graph, 0, opt.full_path, opt.ecmp_max);
+
+    for (d, spf_path) in spt.iter() {
+        // Skip root node.
+        if *d != 4 {
+            continue;
+        }
+
+        for path in spf_path.paths.iter() {
+            let x = path.get(1).unwrap();
+            println!("{:?}", x);
+
+            let p_nodes = p_space_nodes(&graph, s, *x);
+            let q_nodes = q_space_nodes(&graph, *d, *x);
+            // let pc_path = pc_path(&graph, 4, 2);
+            // let p_ext_nodes = p_space_nodes(&graph, 1, 2);
+
+            println!("P: {:?}", p_nodes);
+            println!("Q: {:?}", q_nodes);
+            // println!("PCPath: {:?}", pc_path);
+            // println!("P_ext: {:?}", p_ext_nodes);
+        }
+    }
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
@@ -444,11 +501,42 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
     }
 }
 
-fn main() {
-    let full_path = true;
-    let debug = true;
+pub fn intersect(sa: &Vec<usize>, sb: &Vec<usize>, sc: &Vec<usize>) -> Vec<usize> {
+    let mut result = Vec::new();
 
-    // bench(1000, full_path, debug);
-    // ecmp(full_path, debug);
-    tilfa(full_path, debug);
+    for na in sa {
+        for nb in sb {
+            for nc in sc {
+                if na == nb && nb == nc {
+                    if !result.iter().any(|x: &usize| x == na) {
+                        result.push(*na);
+                    }
+                }
+            }
+        }
+    }
+
+    result
+}
+
+pub fn intersect_test() {
+    // Example test case
+    let sa = vec![1, 2, 3];
+    let sb = vec![2, 3, 4];
+    let sc = vec![3, 4, 5];
+
+    let intersection = intersect(&sa, &sb, &sc);
+    println!("{:?}", intersection);
+}
+
+fn main() {
+    let opt = SpfOpt {
+        full_path: true,
+        ecmp_max: 32,
+    };
+    //ecmp(&opt);
+    bench(20, &opt);
+    // tilfa(&opt);
+
+    // intersect_test();
 }
