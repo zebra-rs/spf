@@ -423,13 +423,13 @@ pub fn tilfa(opt: &SpfOpt) {
 
             let p_nodes = p_space_nodes(&graph, s, *x);
             let q_nodes = q_space_nodes(&graph, *d, *x);
-            // let pc_path = pc_path(&graph, 4, 2);
-            // let p_ext_nodes = p_space_nodes(&graph, 1, 2);
+            let pc_path = pc_path(&graph, 4, 2);
+            let p_ext_nodes = p_space_nodes(&graph, 1, 2);
 
             println!("P: {:?}", p_nodes);
             println!("Q: {:?}", q_nodes);
-            // println!("PCPath: {:?}", pc_path);
-            // println!("P_ext: {:?}", p_ext_nodes);
+            println!("PCPath: {:?}", pc_path);
+            println!("P_ext: {:?}", p_ext_nodes);
         }
     }
 }
@@ -485,7 +485,7 @@ fn main() {
         full_path: true,
         path_max: 16,
     };
-    ecmp(&opt);
+    // ecmp(&opt);
     // bench(300, &opt);
-    // tilfa(&opt);
+    tilfa(&opt);
 }
