@@ -222,13 +222,13 @@ pub fn spf_reverse(
     spf(graph, root, full_path, path_max, &SpfDirect::Reverse)
 }
 
-pub fn p_space_nodes(graph: &Vec<Node>, root: usize, x: usize) -> Vec<usize> {
+pub fn p_space_nodes(graph: &Vec<Node>, s: usize, x: usize) -> Vec<usize> {
     let mut nodes = Vec::<usize>::new();
 
-    let spf = spf_normal(graph, root, true, 0);
+    let spf = spf_normal(graph, s, true, 0);
 
-    for (node, path) in spf.iter() {
-        if *node == root {
+    for (node, path) in &spf {
+        if *node == s {
             continue;
         }
         let mut found_x = false;
@@ -363,35 +363,6 @@ pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
     pc_path.paths.remove(0)
 }
 
-pub fn tilfa_graph() -> Vec<Node> {
-    let mut graph = vec![
-        Node::new("N1", 0),
-        Node::new("N2", 1),
-        Node::new("N3", 2),
-        Node::new("N4", 3),
-        Node::new("N5", 4),
-    ];
-
-    let links = vec![
-        (0, 1, 10),
-        (0, 2, 10),
-        (1, 0, 10),
-        (1, 3, 10),
-        (2, 0, 10),
-        (2, 4, 10),
-        (3, 1, 10),
-        (3, 4, 50),
-        (4, 2, 10),
-        (4, 3, 50),
-    ];
-
-    for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
-        graph[to].ilinks.push(Link::new(from, to, cost));
-    }
-    graph
-}
-
 #[derive(Default)]
 pub struct SpfOpt {
     pub full_path: bool,
@@ -404,34 +375,83 @@ impl SpfOpt {
     }
 }
 
+pub fn tilfa_graph() -> Vec<Node> {
+    let mut graph = vec![
+        Node::new("S", 0),
+        Node::new("N1", 1),
+        Node::new("N2", 2),
+        Node::new("N3", 3),
+        Node::new("R1", 4),
+        Node::new("R2", 5),
+        Node::new("R3", 6),
+        Node::new("D", 7),
+    ];
+
+    let links = vec![
+        // S
+        (0, 1, 1),    // N1
+        (0, 2, 1),    // N2
+        (0, 3, 1000), // N3
+        // N1
+        (1, 0, 1), // S
+        (1, 4, 1), // R1
+        (1, 5, 1), // R2
+        (1, 7, 1), // D
+        // N2
+        (2, 0, 1), // S
+        (2, 4, 1), // R1
+        // N3
+        (3, 0, 1000), // S
+        (3, 4, 1000), // R1
+        // R1
+        (4, 1, 1),    // N1
+        (4, 2, 1),    // N2
+        (4, 3, 1000), // N3
+        (4, 5, 1000), // R2
+        // R2
+        (5, 1, 1),    // N1
+        (5, 4, 1000), // R1
+        (5, 6, 1000), // R3
+        // R3
+        (6, 5, 1),    // R2
+        (6, 7, 1000), // D
+        // D
+        (7, 1, 1), // N1
+        (7, 6, 1), // R3
+    ];
+
+    for (from, to, cost) in links {
+        graph[from].olinks.push(Link::new(from, to, cost));
+        graph[to].ilinks.push(Link::new(from, to, cost));
+    }
+    graph
+}
+
 pub fn tilfa(opt: &SpfOpt) {
     let graph = tilfa_graph();
     let s = 0;
+    let d = 7;
+    let x = 1;
 
-    // SPF
-    let spt = spf_normal(&graph, 0, opt.full_path, opt.path_max);
+    // Normal SPF
+    // let spt = spf_normal(&graph, 0, opt.full_path, opt.path_max);
 
-    for (d, spf_path) in spt.iter() {
-        // Skip root node.
-        if *d != 4 {
-            continue;
-        }
+    let p_nodes = p_space_nodes(&graph, s, x);
+    let q_nodes = q_space_nodes(&graph, d, x);
+    // let pc_path = pc_path(&graph, s, d);
 
-        for path in spf_path.paths.iter() {
-            let x = path.get(1).unwrap();
-            println!("{:?}", x);
-
-            let p_nodes = p_space_nodes(&graph, s, *x);
-            let q_nodes = q_space_nodes(&graph, *d, *x);
-            let pc_path = pc_path(&graph, 4, 2);
-            let p_ext_nodes = p_space_nodes(&graph, 1, 2);
-
-            println!("P: {:?}", p_nodes);
-            println!("Q: {:?}", q_nodes);
-            println!("PCPath: {:?}", pc_path);
-            println!("P_ext: {:?}", p_ext_nodes);
-        }
+    // P
+    print!("P:");
+    for name in p_nodes
+        .iter()
+        .filter_map(|p| graph.get(*p).map(|n| &n.name))
+    {
+        print!(" {}", name);
     }
+    println!();
+    // Q
+    println!("Q: {:?}", q_nodes);
+    // println!("PCPath: {:?}", pc_path);
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
