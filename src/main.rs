@@ -13,6 +13,12 @@ pub struct Node {
     pub is_disabled: bool,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum SpfDirect {
+    Normal,
+    Reverse,
+}
+
 impl Node {
     pub fn new(name: &str, id: usize) -> Self {
         Self {
@@ -21,6 +27,14 @@ impl Node {
             olinks: Vec::new(),
             ilinks: Vec::new(),
             is_disabled: false,
+        }
+    }
+
+    pub fn links(&self, direct: &SpfDirect) -> &Vec<Link> {
+        if *direct == SpfDirect::Normal {
+            &self.olinks
+        } else {
+            &self.ilinks
         }
     }
 }
@@ -35,6 +49,14 @@ pub struct Link {
 impl Link {
     pub fn new(from: usize, to: usize, cost: u32) -> Self {
         Self { from, to, cost }
+    }
+
+    pub fn id(&self, direct: &SpfDirect) -> usize {
+        if *direct == SpfDirect::Normal {
+            self.to
+        } else {
+            self.from
+        }
     }
 }
 
@@ -76,6 +98,7 @@ pub fn spf(
     root: usize,
     full_path: bool,
     path_max: usize,
+    direct: &SpfDirect,
 ) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
     let mut paths = HashMap::<usize, Path>::new();
@@ -99,14 +122,17 @@ pub fn spf(
             continue;
         }
 
-        for link in edge.olinks.iter() {
-            if let Some(x) = graph.get(link.to) {
+        for link in edge.links(direct).iter() {
+            if let Some(x) = graph.get(link.id(direct)) {
                 if x.is_disabled {
                     continue;
                 }
             };
 
-            let c = paths.entry(link.to).or_insert_with(|| Path::new(link.to));
+            let c = paths
+                .entry(link.id(direct))
+                .or_insert_with(|| Path::new(link.id(direct)));
+
             let ocost = c.cost;
 
             if c.id == root {
@@ -127,16 +153,16 @@ pub fn spf(
             }
 
             if v.id == root {
+                let path = vec![root, c.id];
+
                 if full_path {
-                    let path = vec![root, c.id];
                     c.paths.push(path);
                 } else {
-                    let nhop = vec![root, c.id];
-                    c.nexthops.insert(nhop);
+                    c.nexthops.insert(path);
                 }
             } else {
                 if full_path {
-                    for path in v.paths.iter() {
+                    for path in &v.paths {
                         if path_max == 0 || c.paths.len() < path_max {
                             let mut newpath = path.clone();
                             newpath.push(c.id);
@@ -144,7 +170,7 @@ pub fn spf(
                         }
                     }
                 } else {
-                    for nhop in v.nexthops.iter() {
+                    for nhop in &v.nexthops {
                         if path_max == 0 || c.nexthops.len() < path_max {
                             let mut newnhop = nhop.clone();
                             if nhop.len() < 2 {
@@ -176,6 +202,15 @@ pub fn spf(
         }
     }
     spf
+}
+
+pub fn spf_normal(
+    graph: &Vec<Node>,
+    root: usize,
+    full_path: bool,
+    path_max: usize,
+) -> BTreeMap<usize, Path> {
+    spf(graph, root, full_path, path_max, &SpfDirect::Normal)
 }
 
 pub fn spf_reverse(
@@ -184,113 +219,13 @@ pub fn spf_reverse(
     full_path: bool,
     path_max: usize,
 ) -> BTreeMap<usize, Path> {
-    let mut spf = BTreeMap::<usize, Path>::new();
-    let mut paths = HashMap::<usize, Path>::new();
-    let mut bt = BTreeMap::<(u32, usize), Path>::new();
-
-    let mut c = Path::new(root);
-    c.paths.push(vec![root]);
-    c.nexthops.insert(vec![root]);
-
-    paths.insert(root, c.clone());
-    bt.insert((c.cost, root), c);
-
-    while let Some((_, v)) = bt.pop_first() {
-        spf.insert(v.id, v.clone());
-
-        let Some(edge) = graph.get(v.id) else {
-            continue;
-        };
-
-        if edge.is_disabled {
-            continue;
-        }
-
-        for link in edge.ilinks.iter() {
-            if let Some(x) = graph.get(link.to) {
-                if x.is_disabled {
-                    continue;
-                }
-            };
-
-            let c = paths
-                .entry(link.from)
-                .or_insert_with(|| Path::new(link.from));
-            let ocost = c.cost;
-
-            if c.id == root {
-                continue;
-            }
-
-            if c.cost != 0 && c.cost < v.cost + link.cost {
-                continue;
-            }
-
-            if c.cost != 0 && c.cost == v.cost + link.cost {
-                // Fall through for ECMP.
-            }
-
-            if c.cost == 0 || c.cost > v.cost + link.cost {
-                c.cost = v.cost.saturating_add(link.cost);
-                c.paths.clear();
-            }
-
-            if v.id == root {
-                if full_path {
-                    let path = vec![root, c.id];
-                    c.paths.push(path);
-                } else {
-                    let nhop = vec![root, c.id];
-                    c.nexthops.insert(nhop);
-                }
-            } else {
-                if full_path {
-                    for path in v.paths.iter() {
-                        if path_max == 0 || c.paths.len() < path_max {
-                            let mut newpath = path.clone();
-                            newpath.push(c.id);
-                            c.paths.push(newpath);
-                        }
-                    }
-                } else {
-                    for nhop in v.nexthops.iter() {
-                        if path_max == 0 || c.nexthops.len() < path_max {
-                            let mut newnhop = nhop.clone();
-                            if nhop.len() < 2 {
-                                newnhop.push(c.id);
-                            }
-                            c.nexthops.insert(newnhop);
-                        }
-                    }
-                }
-            }
-
-            if !c.registered {
-                c.registered = true;
-                bt.insert((c.cost, c.id), c.clone());
-            } else {
-                if ocost == c.cost {
-                    if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
-                        if full_path {
-                            v.paths = c.paths.clone();
-                        } else {
-                            v.nexthops = c.nexthops.clone();
-                        }
-                    }
-                } else {
-                    bt.remove(&(ocost, c.id));
-                    bt.insert((c.cost, c.id), c.clone());
-                }
-            }
-        }
-    }
-    spf
+    spf(graph, root, full_path, path_max, &SpfDirect::Reverse)
 }
 
 pub fn p_space_nodes(graph: &Vec<Node>, root: usize, x: usize) -> Vec<usize> {
     let mut nodes = Vec::<usize>::new();
 
-    let spf = spf(graph, root, true, 0);
+    let spf = spf_normal(graph, root, true, 0);
 
     for (node, path) in spf.iter() {
         if *node == root {
@@ -372,7 +307,7 @@ pub fn bench(n: usize, opt: &SpfOpt) {
     }
 
     let now = time::Instant::now();
-    let _spf = spf(&graph, 0, opt.full_path, opt.path_max);
+    let _spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
     println!("n:{} {:?}", n, now.elapsed());
 
     // disp(&spf, opt.full_path)
@@ -412,7 +347,7 @@ pub fn ecmp(opt: &SpfOpt) {
     let graph = ecmp_topology();
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
+    let spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
     println!("ecmp {:?}", now.elapsed());
 
     disp(&spf, opt.full_path)
@@ -422,7 +357,7 @@ pub fn pc_path(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
     let mut pc_graph = graph.clone();
     let node = pc_graph.get_mut(x).unwrap();
     node.is_disabled = true;
-    let mut pc_spf = spf(&pc_graph, 0, true, 0);
+    let mut pc_spf = spf_normal(&pc_graph, 0, true, 0);
 
     let mut pc_path = pc_spf.remove(&d).unwrap();
     pc_path.paths.remove(0)
@@ -474,7 +409,7 @@ pub fn tilfa(opt: &SpfOpt) {
     let s = 0;
 
     // SPF
-    let spt = spf(&graph, 0, opt.full_path, opt.path_max);
+    let spt = spf_normal(&graph, 0, opt.full_path, opt.path_max);
 
     for (d, spf_path) in spt.iter() {
         // Skip root node.
@@ -550,7 +485,7 @@ fn main() {
         full_path: true,
         path_max: 16,
     };
-    //ecmp(&opt);
-    bench(300, &opt);
+    ecmp(&opt);
+    // bench(300, &opt);
     // tilfa(&opt);
 }
