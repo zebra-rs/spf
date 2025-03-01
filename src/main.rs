@@ -162,8 +162,11 @@ pub fn spf(
             } else {
                 if ocost == c.cost {
                     if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
-                        v.paths = c.paths.clone();
-                        v.nexthops = c.nexthops.clone();
+                        if full_path {
+                            v.paths = c.paths.clone();
+                        } else {
+                            v.nexthops = c.nexthops.clone();
+                        }
                     }
                 } else {
                     bt.remove(&(ocost, c.id));
@@ -356,10 +359,10 @@ pub fn bench(n: usize, opt: &SpfOpt) {
     }
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
+    let _spf = spf(&graph, 0, opt.full_path, opt.path_max);
     println!("n:{} {:?}", n, now.elapsed());
 
-    disp(&spf, opt.full_path)
+    // disp(&spf, opt.full_path)
 }
 
 pub fn ecmp_topology() -> Graph {
@@ -532,11 +535,9 @@ pub fn intersect_test() {
 fn main() {
     let opt = SpfOpt {
         full_path: true,
-        path_max: 32,
+        path_max: 16,
     };
     //ecmp(&opt);
-    bench(20, &opt);
+    bench(300, &opt);
     // tilfa(&opt);
-
-    // intersect_test();
 }
