@@ -226,7 +226,7 @@ pub fn path_has_x(path: &[usize], x: usize) -> bool {
     path.contains(&x)
 }
 
-pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> Vec<usize> {
+pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
     let spf = spf_normal(graph, s, true, 0);
 
     spf.iter()
@@ -241,10 +241,10 @@ pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> Vec<usize> {
                 None
             }
         })
-        .collect()
+        .collect::<HashSet<_>>() // Collect into HashSet instead of Vec
 }
 
-pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
+pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> HashSet<usize> {
     let spf = spf_reverse(graph, d, true, 0);
 
     spf.iter()
@@ -259,7 +259,7 @@ pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
                 None
             }
         })
-        .collect()
+        .collect::<HashSet<_>>()
 }
 
 //  +---+ +---+ +---+ +---+
@@ -419,14 +419,29 @@ pub fn tilfa_graph() -> Vec<Node> {
     graph
 }
 
+#[derive(Default)]
+pub struct Intersect {
+    pub id: usize,
+    pub p: bool,
+    pub q: bool,
+}
+
 // Find deepest node in pc_path.
-pub fn intersect(nodes: &Vec<usize>, pc_paths: &Vec<usize>) -> Vec<usize> {
+pub fn intersect(
+    pc_path: &Vec<usize>,
+    p_nodes: &HashSet<usize>,
+    q_nodes: &HashSet<usize>,
+) -> Vec<Intersect> {
     let mut intersects = Vec::new();
-    for pc_path in pc_paths {
-        if nodes.contains(pc_path) {
-            intersects.push(*pc_path);
-        }
+
+    for id in pc_path {
+        let mut intersect = Intersect::default();
+        intersect.id = *id;
+        intersect.p = p_nodes.contains(id);
+        intersect.q = q_nodes.contains(id);
+        intersects.push(intersect);
     }
+
     intersects
 }
 
@@ -461,22 +476,42 @@ pub fn tilfa(_opt: &SpfOpt) {
     println!();
 
     // PCPath.
-    print!("PCPath:");
     for path in &mut pc_paths {
+        // Remove S and D.
         path.remove(0);
+        path.pop();
+
+        // Display PCPath.
+        print!("PCPath:");
         for name in path.iter().filter_map(|q| graph.get(*q).map(|n| &n.name)) {
             print!(" {}", name);
         }
-    }
-    println!();
+        println!();
 
-    for pc_path in &pc_paths {
-        let p_intersect = intersect(&p_nodes, &pc_path);
-        let q_intersect = intersect(&q_nodes, &pc_path);
-        println!("P-intersects: {:?}", p_intersect);
-        println!("Q-intersects: {:?}", q_intersect);
-        let pq_intersect = intersect(&p_intersect, &q_intersect);
-        println!("PQ-intersects: {:?}", pq_intersect);
+        // Intersect
+        let intersects = intersect(path, &p_nodes, &q_nodes);
+
+        // Display PCPath & P intersect.
+        print!("Pinter:");
+        for inter in &intersects {
+            if inter.p {
+                print!(" o ");
+            } else {
+                print!(" x ");
+            }
+        }
+        println!();
+
+        // Display PCPath & Q intersect.
+        print!("Qinter:");
+        for inter in &intersects {
+            if inter.q {
+                print!(" o ");
+            } else {
+                print!(" x ");
+            }
+        }
+        println!();
     }
 }
 
@@ -496,34 +531,6 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
             }
         }
     }
-}
-
-pub fn intersect_old(sa: &Vec<usize>, sb: &Vec<usize>, sc: &Vec<usize>) -> Vec<usize> {
-    let mut result = Vec::new();
-
-    for na in sa {
-        for nb in sb {
-            for nc in sc {
-                if na == nb && nb == nc {
-                    if !result.iter().any(|x: &usize| x == na) {
-                        result.push(*na);
-                    }
-                }
-            }
-        }
-    }
-
-    result
-}
-
-pub fn intersect_test() {
-    // Example test case
-    let _sa = vec![1, 2, 3];
-    let _sb = vec![2, 3, 4];
-    let _sc = vec![3, 4, 5];
-
-    // let intersection = intersect(&sa, &sb, &sc);
-    // println!("{:?}", intersection);
 }
 
 fn main() {
