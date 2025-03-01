@@ -180,7 +180,7 @@ pub fn spf(
 
 pub fn spf_reverse(
     graph: &Vec<Node>,
-    dest: usize,
+    root: usize,
     full_path: bool,
     path_max: usize,
 ) -> BTreeMap<usize, Path> {
@@ -188,12 +188,12 @@ pub fn spf_reverse(
     let mut paths = HashMap::<usize, Path>::new();
     let mut bt = BTreeMap::<(u32, usize), Path>::new();
 
-    let mut c = Path::new(dest);
-    c.paths.push(vec![dest]);
-    c.nexthops.insert(vec![dest]);
+    let mut c = Path::new(root);
+    c.paths.push(vec![root]);
+    c.nexthops.insert(vec![root]);
 
-    paths.insert(dest, c.clone());
-    bt.insert((c.cost, dest), c);
+    paths.insert(root, c.clone());
+    bt.insert((c.cost, root), c);
 
     while let Some((_, v)) = bt.pop_first() {
         spf.insert(v.id, v.clone());
@@ -202,13 +202,23 @@ pub fn spf_reverse(
             continue;
         };
 
+        if edge.is_disabled {
+            continue;
+        }
+
         for link in edge.ilinks.iter() {
+            if let Some(x) = graph.get(link.to) {
+                if x.is_disabled {
+                    continue;
+                }
+            };
+
             let c = paths
                 .entry(link.from)
                 .or_insert_with(|| Path::new(link.from));
             let ocost = c.cost;
 
-            if c.id == dest {
+            if c.id == root {
                 continue;
             }
 
@@ -225,12 +235,12 @@ pub fn spf_reverse(
                 c.paths.clear();
             }
 
-            if v.id == dest {
+            if v.id == root {
                 if full_path {
-                    let path = vec![dest, c.id];
+                    let path = vec![root, c.id];
                     c.paths.push(path);
                 } else {
-                    let nhop = vec![dest, c.id];
+                    let nhop = vec![root, c.id];
                     c.nexthops.insert(nhop);
                 }
             } else {
