@@ -222,57 +222,26 @@ pub fn spf_reverse(
     spf(graph, root, full_path, path_max, &SpfDirect::Reverse)
 }
 
-pub fn path_has_x(path: &Vec<usize>, x: usize) -> bool {
-    for p in path {
-        if *p == x {
-            return true;
-        }
-    }
-    false
+pub fn path_has_x(path: &[usize], x: usize) -> bool {
+    path.contains(&x)
 }
 
-fn get_nexthop(path: &Vec<usize>) -> usize {
-    if path.len() < 2 {
-        return 0;
-    }
-    *path.get(1).unwrap()
-}
-
-pub fn p_space_nodes(graph: &Vec<Node>, s: usize, x: usize) -> Vec<usize> {
-    let mut nodes = Vec::<usize>::new();
-
+pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> Vec<usize> {
     let spf = spf_normal(graph, s, true, 0);
 
-    for (node, path) in &spf {
-        if *node == s {
-            continue;
-        }
-        let mut path_is_ok = false;
-        for i in &path.paths {
-            let nexthop = get_nexthop(i);
-            println!("nexthop {}", nexthop);
-
-            let mut found_x = false;
-
-            // We need to consider ECMP path which.
-            for j in &path.paths {
-                if nexthop != get_nexthop(j) {
-                    continue;
-                }
-                if path_has_x(j, x) {
-                    found_x = true;
-                }
+    spf.iter()
+        .filter_map(|(node, path)| {
+            if *node == s {
+                return None; // Skip the source node
             }
-            if !found_x {
-                path_is_ok = true;
+            let has_valid_paths = path.paths.iter().any(|p| !path_has_x(p, x));
+            if has_valid_paths {
+                Some(*node)
+            } else {
+                None
             }
-        }
-        if !path_is_ok {
-            nodes.push(*node);
-        }
-    }
-
-    nodes
+        })
+        .collect()
 }
 
 pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
