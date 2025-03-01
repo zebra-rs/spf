@@ -245,28 +245,21 @@ pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> Vec<usize> {
 }
 
 pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> Vec<usize> {
-    let mut nodes = Vec::<usize>::new();
-
     let spf = spf_reverse(graph, d, true, 0);
 
-    for (node, path) in spf.iter() {
-        if *node == d {
-            continue;
-        }
-        let mut found_x = false;
-        for path in &path.paths {
-            for p in path.iter() {
-                if *p == x {
-                    found_x = true;
-                }
+    spf.iter()
+        .filter_map(|(node, path)| {
+            if *node == d {
+                return None; // Skip the source node
             }
-        }
-        if !found_x {
-            nodes.push(*node);
-        }
-    }
-
-    nodes
+            let has_valid_paths = path.paths.iter().any(|p| !path_has_x(p, x));
+            if has_valid_paths {
+                Some(*node)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 //  +---+ +---+ +---+ +---+
@@ -410,8 +403,8 @@ pub fn tilfa_graph() -> Vec<Node> {
         (5, 4, 1000), // R1
         (5, 6, 1000), // R3
         // R3
-        (6, 5, 1),    // R2
-        (6, 7, 1000), // D
+        (6, 5, 1000), // R2
+        (6, 7, 1),    // D
         // D
         (7, 1, 1), // N1
         (7, 6, 1), // R3
@@ -447,8 +440,14 @@ pub fn tilfa(_opt: &SpfOpt) {
     }
     println!();
     // Q
-    println!("Q: {:?}", q_nodes);
-    // println!("PCPath: {:?}", pc_path);
+    print!("Q:");
+    for name in q_nodes
+        .iter()
+        .filter_map(|q| graph.get(*q).map(|n| &n.name))
+    {
+        print!(" {}", name);
+    }
+    println!();
 }
 
 pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
