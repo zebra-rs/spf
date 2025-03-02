@@ -681,12 +681,24 @@ pub fn make_repair_test() {
     println!("{:?}", repair_list);
 }
 
-pub fn tilfa(_opt: &SpfOpt) {
-    let graph = tilfa_graph();
-    let s = 0;
-    let d = 7;
-    let x = 1;
+pub fn repair_list_print(graph: &Graph, repair_list: &Vec<SrSegment>) {
+    for list in repair_list {
+        match list {
+            SrSegment::NodeSid(nid) => {
+                print!("NodeSid({}) ", graph.get(*nid).map(|n| &n.name).unwrap());
+            }
+            SrSegment::AdjSid(from, to) => {
+                print!(
+                    "AdjSid({}, {}) ",
+                    graph.get(*from).map(|n| &n.name).unwrap(),
+                    graph.get(*to).map(|n| &n.name).unwrap()
+                );
+            }
+        }
+    }
+}
 
+pub fn tilfa(graph: &Graph, s: usize, d: usize, x: usize) {
     let p_nodes = p_space_nodes(&graph, s, x);
     let q_nodes = q_space_nodes(&graph, d, x);
     let mut pc_paths = pc_paths(&graph, s, d, x);
@@ -751,7 +763,8 @@ pub fn tilfa(_opt: &SpfOpt) {
 
         // Convert PC intersects into repair list.
         let repair_list = make_repair_list(&pc_inter, s, d);
-        println!("{:?}", repair_list);
+        repair_list_print(graph, &repair_list);
+        //println!("{:?}", repair_list);
     }
 }
 
@@ -773,13 +786,91 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
     }
 }
 
+pub fn tilfa1() {
+    let graph = tilfa_graph();
+    let s = 0;
+    let d = 7;
+    let x = 1;
+
+    tilfa(&graph, s, d, x);
+}
+
+pub fn tilfa_graph_adj_seg() -> Vec<Node> {
+    let mut graph = vec![
+        Node::new("S", 0),
+        Node::new("R2", 1),
+        Node::new("R3", 2),
+        Node::new("R4", 3),
+        Node::new("R5", 4),
+        Node::new("R7", 5),
+        Node::new("R8", 6),
+        Node::new("R9", 7),
+        Node::new("R10", 8),
+        Node::new("D", 9),
+    ];
+
+    let links = vec![
+        // S
+        (0, 1, 1), // R2
+        // R2
+        (1, 0, 1),    // S
+        (1, 2, 1),    // R3
+        (1, 5, 1000), // R7
+        // R3
+        (2, 1, 1), // R2
+        (2, 3, 1), // R4
+        (2, 5, 1), // R7
+        (2, 6, 1), // R8
+        // R4
+        (3, 2, 1),    // R3
+        (3, 4, 1),    // R5
+        (3, 6, 1000), // R8
+        // R5
+        (4, 3, 1), // R4
+        (4, 9, 1), // D
+        // R7
+        (5, 1, 1000), // R2
+        (5, 2, 1),    // R3
+        (5, 6, 1000), // R8
+        (5, 7, 1000), // R9
+        // R8
+        (6, 2, 1),    // R3
+        (6, 3, 1000), // R4
+        (6, 5, 1000), // R7
+        (6, 8, 1),    // R10
+        // R9
+        (7, 5, 1000), // R7
+        (7, 8, 1),    // R10
+        // R10
+        (8, 6, 1), // R8
+        (8, 7, 1), // R9
+        // D
+        (9, 4, 1), // R5
+    ];
+
+    for (from, to, cost) in links {
+        graph[from].olinks.push(Link::new(from, to, cost));
+        graph[to].ilinks.push(Link::new(from, to, cost));
+    }
+    graph
+}
+
+pub fn tilfa2() {
+    let graph = tilfa_graph_adj_seg();
+    let s = 0;
+    let d = 9; // D
+    let x = 2; // R3
+
+    tilfa(&graph, s, d, x);
+}
+
 fn main() {
-    let opt = SpfOpt {
-        full_path: true,
-        path_max: 16,
-    };
+    // let opt = SpfOpt {
+    //     full_path: true,
+    //     path_max: 16,
+    // };
     // ecmp(&opt);
     // bench(300, &opt);
-    tilfa(&opt);
     // make_repair_test();
+    tilfa2();
 }
