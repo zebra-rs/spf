@@ -419,7 +419,7 @@ pub fn tilfa_graph() -> Vec<Node> {
     graph
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Intersect {
     pub id: usize,
     pub p: bool,
@@ -443,6 +443,242 @@ pub fn intersect(
     }
 
     intersects
+}
+
+#[derive(Debug)]
+pub enum SrSegment {
+    NodeSid(usize),
+    AdjSid(usize, usize),
+}
+
+pub fn make_repair_list(pc_inter: &[Intersect], s: usize, d: usize) -> Vec<SrSegment> {
+    let mut sr_segments = Vec::new();
+
+    let mut prev_id = None;
+    let mut p_mode = false;
+    let mut q_mode = false;
+
+    for (index, inter) in pc_inter.iter().enumerate() {
+        if index == 0 {
+            if inter.p {
+                p_mode = true;
+            } else {
+                sr_segments.push(SrSegment::AdjSid(s, inter.id));
+            }
+        } else {
+            if p_mode {
+                if !inter.p {
+                    if let Some(prev_id) = prev_id {
+                        sr_segments.push(SrSegment::NodeSid(prev_id));
+                    }
+                    if !q_mode {
+                        sr_segments.push(SrSegment::AdjSid(prev_id.unwrap(), inter.id));
+                    }
+                    p_mode = false;
+                }
+            } else if let Some(prev_id) = prev_id {
+                if !q_mode {
+                    sr_segments.push(SrSegment::AdjSid(prev_id, inter.id));
+                }
+            }
+        }
+
+        if inter.q {
+            q_mode = true;
+        }
+        prev_id = Some(inter.id);
+    }
+
+    if !q_mode {
+        if let Some(prev_id) = prev_id {
+            sr_segments.push(SrSegment::AdjSid(prev_id, d));
+        }
+    }
+
+    sr_segments
+}
+
+pub fn make_repair_test() {
+    let pc_inter1 = vec![
+        Intersect {
+            id: 1,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: true,
+            q: true,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: true,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: true,
+        },
+    ];
+
+    let pc_inter2 = vec![
+        Intersect {
+            id: 1,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: true,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: true,
+        },
+    ];
+
+    let pc_inter3 = vec![
+        Intersect {
+            id: 1,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: true,
+        },
+    ];
+
+    let pc_inter4 = vec![
+        Intersect {
+            id: 1,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: false,
+        },
+    ];
+
+    let pc_inter5 = vec![
+        Intersect {
+            id: 1,
+            p: true,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: true,
+        },
+    ];
+
+    let pc_inter6 = vec![
+        Intersect {
+            id: 1,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 2,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 3,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 4,
+            p: false,
+            q: false,
+        },
+        Intersect {
+            id: 5,
+            p: false,
+            q: false,
+        },
+    ];
+
+    let repair_list = make_repair_list(&pc_inter1, 0, 100);
+    println!("{:?}", repair_list);
+    let repair_list = make_repair_list(&pc_inter2, 0, 100);
+    println!("{:?}", repair_list);
+    let repair_list = make_repair_list(&pc_inter3, 0, 100);
+    println!("{:?}", repair_list);
+    let repair_list = make_repair_list(&pc_inter4, 0, 100);
+    println!("{:?}", repair_list);
+    let repair_list = make_repair_list(&pc_inter5, 0, 100);
+    println!("{:?}", repair_list);
+    let repair_list = make_repair_list(&pc_inter6, 0, 100);
+    println!("{:?}", repair_list);
 }
 
 pub fn tilfa(_opt: &SpfOpt) {
@@ -489,11 +725,11 @@ pub fn tilfa(_opt: &SpfOpt) {
         println!();
 
         // Intersect
-        let intersects = intersect(path, &p_nodes, &q_nodes);
+        let pc_inter = intersect(path, &p_nodes, &q_nodes);
 
         // Display PCPath & P intersect.
         print!("Pinter:");
-        for inter in &intersects {
+        for inter in &pc_inter {
             if inter.p {
                 print!(" o ");
             } else {
@@ -504,7 +740,7 @@ pub fn tilfa(_opt: &SpfOpt) {
 
         // Display PCPath & Q intersect.
         print!("Qinter:");
-        for inter in &intersects {
+        for inter in &pc_inter {
             if inter.q {
                 print!(" o ");
             } else {
@@ -512,6 +748,10 @@ pub fn tilfa(_opt: &SpfOpt) {
             }
         }
         println!();
+
+        // Convert PC intersects into repair list.
+        let repair_list = make_repair_list(&pc_inter, s, d);
+        println!("{:?}", repair_list);
     }
 }
 
@@ -534,11 +774,12 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
 }
 
 fn main() {
-    let opt = SpfOpt {
-        full_path: true,
-        path_max: 16,
-    };
+    // let opt = SpfOpt {
+    //     full_path: true,
+    //     path_max: 16,
+    // };
     // ecmp(&opt);
     // bench(300, &opt);
-    tilfa(&opt);
+    // tilfa(&opt);
+    make_repair_test();
 }
