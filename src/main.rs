@@ -774,12 +774,12 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
 }
 
 fn main() {
-    // let opt = SpfOpt {
-    //     full_path: true,
-    //     path_max: 16,
-    // };
+    let opt = SpfOpt {
+        full_path: true,
+        path_max: 16,
+    };
     // ecmp(&opt);
     // bench(300, &opt);
-    // tilfa(&opt);
-    make_repair_test();
+    tilfa(&opt);
+    // make_repair_test();
 }
