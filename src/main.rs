@@ -367,58 +367,6 @@ impl SpfOpt {
     }
 }
 
-pub fn tilfa_graph() -> Vec<Node> {
-    let mut graph = vec![
-        Node::new("S", 0),
-        Node::new("N1", 1),
-        Node::new("N2", 2),
-        Node::new("N3", 3),
-        Node::new("R1", 4),
-        Node::new("R2", 5),
-        Node::new("R3", 6),
-        Node::new("D", 7),
-    ];
-
-    let links = vec![
-        // S
-        (0, 1, 1),    // N1
-        (0, 2, 1),    // N2
-        (0, 3, 1000), // N3
-        // N1
-        (1, 0, 1), // S
-        (1, 4, 1), // R1
-        (1, 5, 1), // R2
-        (1, 7, 1), // D
-        // N2
-        (2, 0, 1), // S
-        (2, 4, 1), // R1
-        // N3
-        (3, 0, 1000), // S
-        (3, 4, 1000), // R1
-        // R1
-        (4, 1, 1),    // N1
-        (4, 2, 1),    // N2
-        (4, 3, 1000), // N3
-        (4, 5, 1000), // R2
-        // R2
-        (5, 1, 1),    // N1
-        (5, 4, 1000), // R1
-        (5, 6, 1000), // R3
-        // R3
-        (6, 5, 1000), // R2
-        (6, 7, 1),    // D
-        // D
-        (7, 1, 1), // N1
-        (7, 6, 1), // R3
-    ];
-
-    for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
-        graph[to].ilinks.push(Link::new(from, to, cost));
-    }
-    graph
-}
-
 #[derive(Debug, Default, Clone)]
 pub struct Intersect {
     pub id: usize,
@@ -786,6 +734,58 @@ pub fn disp(spf: &BTreeMap<usize, Path>, full_path: bool) {
     }
 }
 
+pub fn tilfa_graph() -> Vec<Node> {
+    let mut graph = vec![
+        Node::new("S", 0),
+        Node::new("N1", 1),
+        Node::new("N2", 2),
+        Node::new("N3", 3),
+        Node::new("R1", 4),
+        Node::new("R2", 5),
+        Node::new("R3", 6),
+        Node::new("D", 7),
+    ];
+
+    let links = vec![
+        // S
+        (0, 1, 1),    // N1
+        (0, 2, 1),    // N2
+        (0, 3, 1000), // N3
+        // N1
+        (1, 0, 1), // S
+        (1, 4, 1), // R1
+        (1, 5, 1), // R2
+        (1, 7, 1), // D
+        // N2
+        (2, 0, 1), // S
+        (2, 4, 1), // R1
+        // N3
+        (3, 0, 1000), // S
+        (3, 4, 1000), // R1
+        // R1
+        (4, 1, 1),    // N1
+        (4, 2, 1),    // N2
+        (4, 3, 1000), // N3
+        (4, 5, 1000), // R2
+        // R2
+        (5, 1, 1),    // N1
+        (5, 4, 1000), // R1
+        (5, 6, 1000), // R3
+        // R3
+        (6, 5, 1000), // R2
+        (6, 7, 1),    // D
+        // D
+        (7, 1, 1), // N1
+        (7, 6, 1), // R3
+    ];
+
+    for (from, to, cost) in links {
+        graph[from].olinks.push(Link::new(from, to, cost));
+        graph[to].ilinks.push(Link::new(from, to, cost));
+    }
+    graph
+}
+
 pub fn tilfa1() {
     let graph = tilfa_graph();
     let s = 0;
@@ -865,12 +865,13 @@ pub fn tilfa2() {
 }
 
 fn main() {
-    // let opt = SpfOpt {
-    //     full_path: true,
-    //     path_max: 16,
-    // };
-    // ecmp(&opt);
-    // bench(300, &opt);
+    let opt = SpfOpt {
+        full_path: true,
+        path_max: 0,
+    };
+    ecmp(&opt);
+    // bench(15, &opt);
     // make_repair_test();
-    tilfa2();
+    // tilfa1();
+    // tilfa2();
 }
