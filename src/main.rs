@@ -11,6 +11,8 @@ pub struct Node {
     pub olinks: Vec<Link>,
     pub ilinks: Vec<Link>,
     pub is_disabled: bool,
+    pub is_srv6: bool,
+    pub is_srmpls: bool,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -27,6 +29,8 @@ impl Node {
             olinks: Vec::new(),
             ilinks: Vec::new(),
             is_disabled: false,
+            is_srv6: true,
+            is_srmpls: true,
         }
     }
 
@@ -36,6 +40,14 @@ impl Node {
         } else {
             &self.ilinks
         }
+    }
+
+    pub fn is_srv6_capable(&self) -> bool {
+        self.is_srv6
+    }
+
+    pub fn is_srmpls(&self) -> bool {
+        self.is_srmpls
     }
 }
 
@@ -297,10 +309,10 @@ pub fn bench(n: usize, opt: &SpfOpt) {
     }
 
     let now = time::Instant::now();
-    let _spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
+    let spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
     println!("n:{} {:?}", n, now.elapsed());
 
-    // disp(&spf, opt.full_path)
+    disp(&spf, opt.full_path)
 }
 
 pub fn ecmp_topology() -> Graph {
@@ -359,6 +371,8 @@ pub fn pc_paths(graph: &Graph, s: usize, d: usize, x: usize) -> Vec<Vec<usize>> 
 pub struct SpfOpt {
     pub full_path: bool,
     pub path_max: usize,
+    pub srmpls: bool,
+    pub srv6: bool,
 }
 
 impl SpfOpt {
@@ -867,10 +881,12 @@ pub fn tilfa2() {
 fn main() {
     let opt = SpfOpt {
         full_path: true,
-        path_max: 0,
+        path_max: 32,
+        srv6: false,
+        srmpls: true,
     };
-    ecmp(&opt);
-    // bench(15, &opt);
+    // ecmp(&opt);
+    bench(100, &opt);
     // make_repair_test();
     // tilfa1();
     // tilfa2();
