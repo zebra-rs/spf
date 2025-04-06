@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::time::Instant;
 
 use spf::*;
@@ -14,35 +15,38 @@ use spf::*;
 //  |Xn |-| 1 |-|...|-|   |
 //  +---+ +---+ +---+ +---+
 //
-pub fn matrix_toplogy(n: usize, opt: &SpfOpt) {
-    let mut graph = vec![];
+pub fn matrix_topology(n: usize, opt: &SpfOpt) {
+    let mut graph = BTreeMap::new();
+
     for i in 0..n {
         for j in 0..n {
             let id = (i * n) + j;
             let mut node = Node::new(&id.to_string(), id);
-            // Vertical link: do not create vertical link for bottom row.
+
+            // Vertical link: do not create for bottom row
             if i != n - 1 {
-                // Link from id to id + n.
                 let link = Link::new(id, id + n, 10);
                 node.olinks.push(link);
             }
-            // Horisontal link: do not create horisontal link for most right column.
+
+            // Horizontal link: do not create for rightmost column
             if j != n - 1 {
-                // Link from id to id + n.
                 let link = Link::new(id, id + 1, 10);
                 node.olinks.push(link);
             }
-            graph.push(node);
+
+            graph.insert(id, node);
         }
     }
 
     let now = Instant::now();
-    let spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
+    // Assuming `spf` now takes a reference to BTreeMap instead of Vec<Node>
+    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
     println!("n:{} {:?}", n, now.elapsed());
 
     assert_eq!(spf.len(), 10000); // 100 x 100
 
-    // disp(&spf, opt.full_path)
+    // disp(&spf, opt.full_path);
 }
 
 #[test]
@@ -66,5 +70,5 @@ pub fn matrix() {
         srv6: false,
         srmpls: true,
     };
-    matrix_toplogy(100, &opt);
+    matrix_topology(100, &opt);
 }

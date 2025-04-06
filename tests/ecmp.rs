@@ -1,9 +1,13 @@
-use std::time::Instant;
+use std::collections::BTreeMap;
+use std::time;
 
 use spf::*;
 
 pub fn ecmp_topology() -> Graph {
-    let mut graph = vec![
+    let mut graph = BTreeMap::new();
+
+    // First, insert all nodes
+    let nodes = vec![
         Node::new("N1", 0),
         Node::new("N2", 1),
         Node::new("N3", 2),
@@ -11,6 +15,12 @@ pub fn ecmp_topology() -> Graph {
         Node::new("N5", 4),
     ];
 
+    // Insert each Node into the map keyed by node id
+    for node in nodes {
+        graph.insert(node.id, node);
+    }
+
+    // Define links between nodes
     let links = vec![
         (0, 1, 10),
         (0, 2, 10),
@@ -26,12 +36,17 @@ pub fn ecmp_topology() -> Graph {
         (4, 3, 10),
     ];
 
+    // Now add links to the respective nodes stored in our BTreeMap
     for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
+        graph
+            .get_mut(&from)
+            .unwrap()
+            .olinks
+            .push(Link::new(from, to, cost));
     }
+
     graph
 }
-
 #[test]
 pub fn ecmp() {
     let opt = SpfOpt {
@@ -43,8 +58,8 @@ pub fn ecmp() {
 
     let graph = ecmp_topology();
 
-    let now = Instant::now();
-    let spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
+    let now = time::Instant::now();
+    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
     println!("Time ecmp {:?}", now.elapsed());
 
     // node: 0 nexthops: 1

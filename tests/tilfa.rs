@@ -1,7 +1,12 @@
+use std::collections::BTreeMap;
+
 use spf::*;
 
-pub fn tilfa_graph() -> Vec<Node> {
-    let mut graph = vec![
+pub fn tilfa_graph() -> BTreeMap<usize, Node> {
+    let mut graph = BTreeMap::new();
+
+    // Insert nodes
+    let nodes = vec![
         Node::new("S", 0),
         Node::new("N1", 1),
         Node::new("N2", 2),
@@ -12,6 +17,11 @@ pub fn tilfa_graph() -> Vec<Node> {
         Node::new("D", 7),
     ];
 
+    for node in nodes {
+        graph.insert(node.id, node);
+    }
+
+    // Define links
     let links = vec![
         // S
         (0, 1, 1),    // N1
@@ -45,10 +55,20 @@ pub fn tilfa_graph() -> Vec<Node> {
         (7, 6, 1), // R3
     ];
 
+    // Insert links into nodes
     for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
-        graph[to].ilinks.push(Link::new(from, to, cost));
+        graph
+            .get_mut(&from)
+            .unwrap()
+            .olinks
+            .push(Link::new(from, to, cost));
+        graph
+            .get_mut(&to)
+            .unwrap()
+            .ilinks
+            .push(Link::new(from, to, cost));
     }
+
     graph
 }
 
@@ -62,8 +82,11 @@ pub fn tilfa1() {
     tilfa(&graph, s, d, x);
 }
 
-pub fn tilfa_graph_adj_seg() -> Vec<Node> {
-    let mut graph = vec![
+pub fn tilfa_graph_adj_seg() -> BTreeMap<usize, Node> {
+    let mut graph = BTreeMap::new();
+
+    // Insert nodes explicitly
+    let nodes = vec![
         Node::new("S", 0),
         Node::new("R2", 1),
         Node::new("R3", 2),
@@ -76,6 +99,11 @@ pub fn tilfa_graph_adj_seg() -> Vec<Node> {
         Node::new("D", 9),
     ];
 
+    for node in nodes {
+        graph.insert(node.id, node);
+    }
+
+    // Define and add links
     let links = vec![
         // S
         (0, 1, 1), // R2
@@ -115,10 +143,20 @@ pub fn tilfa_graph_adj_seg() -> Vec<Node> {
         (9, 4, 1), // R5
     ];
 
+    // Insert links into nodes
     for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
-        graph[to].ilinks.push(Link::new(from, to, cost));
+        graph
+            .get_mut(&from)
+            .unwrap()
+            .olinks
+            .push(Link::new(from, to, cost));
+        graph
+            .get_mut(&to)
+            .unwrap()
+            .ilinks
+            .push(Link::new(from, to, cost));
     }
+
     graph
 }
 

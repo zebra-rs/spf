@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-pub type Graph = Vec<Node>;
+// pub type Graph = Vec<Node>;
+pub type Graph = BTreeMap<usize, Node>;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
@@ -104,8 +105,8 @@ impl Path {
     }
 }
 
-pub fn spf(
-    graph: &[Node],
+pub fn spf_calc(
+    graph: &Graph,
     root: usize,
     full_path: bool,
     path_max: usize,
@@ -125,7 +126,7 @@ pub fn spf(
     while let Some((_, v)) = bt.pop_first() {
         spf.insert(v.id, v.clone());
 
-        let Some(edge) = graph.get(v.id) else {
+        let Some(edge) = graph.get(&v.id) else {
             continue;
         };
 
@@ -134,7 +135,7 @@ pub fn spf(
         }
 
         for link in edge.links(direct).iter() {
-            if let Some(x) = graph.get(link.id(direct)) {
+            if let Some(x) = graph.get(&link.id(direct)) {
                 if x.is_disabled {
                     continue;
                 }
@@ -211,22 +212,17 @@ pub fn spf(
     spf
 }
 
-pub fn spf_normal(
-    graph: &[Node],
-    root: usize,
-    full_path: bool,
-    path_max: usize,
-) -> BTreeMap<usize, Path> {
-    spf(graph, root, full_path, path_max, &SpfDirect::Normal)
+pub fn spf(graph: &Graph, root: usize, full_path: bool, path_max: usize) -> BTreeMap<usize, Path> {
+    spf_calc(graph, root, full_path, path_max, &SpfDirect::Normal)
 }
 
 pub fn spf_reverse(
-    graph: &[Node],
+    graph: &Graph,
     root: usize,
     full_path: bool,
     path_max: usize,
 ) -> BTreeMap<usize, Path> {
-    spf(graph, root, full_path, path_max, &SpfDirect::Reverse)
+    spf_calc(graph, root, full_path, path_max, &SpfDirect::Reverse)
 }
 
 pub fn path_has_x(path: &[usize], x: usize) -> bool {
@@ -234,7 +230,7 @@ pub fn path_has_x(path: &[usize], x: usize) -> bool {
 }
 
 pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
-    let spf = spf_normal(graph, s, true, 0);
+    let spf = spf(graph, s, true, 0);
 
     spf.iter()
         .filter_map(|(node, path)| {
@@ -251,7 +247,7 @@ pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
         .collect::<HashSet<_>>() // Collect into HashSet instead of Vec
 }
 
-pub fn q_space_nodes(graph: &[Node], d: usize, x: usize) -> HashSet<usize> {
+pub fn q_space_nodes(graph: &Graph, d: usize, x: usize) -> HashSet<usize> {
     let spf = spf_reverse(graph, d, true, 0);
 
     spf.iter()
@@ -270,13 +266,13 @@ pub fn q_space_nodes(graph: &[Node], d: usize, x: usize) -> HashSet<usize> {
 }
 
 pub fn pc_paths(graph: &Graph, s: usize, d: usize, x: usize) -> Vec<Vec<usize>> {
-    let mut pc_graph: Vec<Node> = graph.to_owned(); // Clone only when necessary
+    let mut pc_graph: Graph = graph.to_owned(); // Clone only when necessary
 
-    if let Some(x_node) = pc_graph.get_mut(x) {
+    if let Some(x_node) = pc_graph.get_mut(&x) {
         x_node.is_disabled = true;
     }
 
-    spf_normal(&pc_graph, s, true, 0)
+    spf(&pc_graph, s, true, 0)
         .remove(&d)
         .map_or_else(Vec::new, |data| data.paths)
 }
@@ -377,13 +373,13 @@ pub fn repair_list_print(graph: &Graph, repair_list: &Vec<SrSegment>) {
     for list in repair_list {
         match list {
             SrSegment::NodeSid(nid) => {
-                print!("NodeSid({}) ", graph.get(*nid).map(|n| &n.name).unwrap());
+                print!("NodeSid({}) ", graph.get(nid).map(|n| &n.name).unwrap());
             }
             SrSegment::AdjSid(from, to) => {
                 print!(
                     "AdjSid({}, {}) ",
-                    graph.get(*from).map(|n| &n.name).unwrap(),
-                    graph.get(*to).map(|n| &n.name).unwrap()
+                    graph.get(from).map(|n| &n.name).unwrap(),
+                    graph.get(to).map(|n| &n.name).unwrap()
                 );
             }
         }
@@ -397,20 +393,14 @@ pub fn tilfa(graph: &Graph, s: usize, d: usize, x: usize) {
 
     // P
     print!("P:");
-    for name in p_nodes
-        .iter()
-        .filter_map(|p| graph.get(*p).map(|n| &n.name))
-    {
+    for name in p_nodes.iter().filter_map(|p| graph.get(p).map(|n| &n.name)) {
         print!(" {}", name);
     }
     println!();
 
     // Q
     print!("Q:");
-    for name in q_nodes
-        .iter()
-        .filter_map(|q| graph.get(*q).map(|n| &n.name))
-    {
+    for name in q_nodes.iter().filter_map(|q| graph.get(q).map(|n| &n.name)) {
         print!(" {}", name);
     }
     println!();
@@ -423,7 +413,7 @@ pub fn tilfa(graph: &Graph, s: usize, d: usize, x: usize) {
 
         // Display PCPath.
         print!("PCPath:");
-        for name in path.iter().filter_map(|q| graph.get(*q).map(|n| &n.name)) {
+        for name in path.iter().filter_map(|q| graph.get(q).map(|n| &n.name)) {
             print!(" {}", name);
         }
         println!();
