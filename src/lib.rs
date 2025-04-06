@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time;
 
-type Graph = Vec<Node>;
+pub type Graph = Vec<Node>;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
@@ -106,7 +106,7 @@ impl Path {
 }
 
 pub fn spf(
-    graph: &Vec<Node>,
+    graph: &[Node],
     root: usize,
     full_path: bool,
     path_max: usize,
@@ -172,24 +172,22 @@ pub fn spf(
                 } else {
                     c.nexthops.insert(path);
                 }
-            } else {
-                if full_path {
-                    for path in &v.paths {
-                        if path_max == 0 || c.paths.len() < path_max {
-                            let mut newpath = path.clone();
-                            newpath.push(c.id);
-                            c.paths.push(newpath);
-                        }
+            } else if full_path {
+                for path in &v.paths {
+                    if path_max == 0 || c.paths.len() < path_max {
+                        let mut newpath = path.clone();
+                        newpath.push(c.id);
+                        c.paths.push(newpath);
                     }
-                } else {
-                    for nhop in &v.nexthops {
-                        if path_max == 0 || c.nexthops.len() < path_max {
-                            let mut newnhop = nhop.clone();
-                            if nhop.len() < 2 {
-                                newnhop.push(c.id);
-                            }
-                            c.nexthops.insert(newnhop);
+                }
+            } else {
+                for nhop in &v.nexthops {
+                    if path_max == 0 || c.nexthops.len() < path_max {
+                        let mut newnhop = nhop.clone();
+                        if nhop.len() < 2 {
+                            newnhop.push(c.id);
                         }
+                        c.nexthops.insert(newnhop);
                     }
                 }
             }
@@ -197,19 +195,17 @@ pub fn spf(
             if !c.registered {
                 c.registered = true;
                 bt.insert((c.cost, c.id), c.clone());
-            } else {
-                if ocost == c.cost {
-                    if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
-                        if full_path {
-                            v.paths = c.paths.clone();
-                        } else {
-                            v.nexthops = c.nexthops.clone();
-                        }
+            } else if ocost == c.cost {
+                if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
+                    if full_path {
+                        v.paths = c.paths.clone();
+                    } else {
+                        v.nexthops = c.nexthops.clone();
                     }
-                } else {
-                    bt.remove(&(ocost, c.id));
-                    bt.insert((c.cost, c.id), c.clone());
                 }
+            } else {
+                bt.remove(&(ocost, c.id));
+                bt.insert((c.cost, c.id), c.clone());
             }
         }
     }
@@ -217,7 +213,7 @@ pub fn spf(
 }
 
 pub fn spf_normal(
-    graph: &Vec<Node>,
+    graph: &[Node],
     root: usize,
     full_path: bool,
     path_max: usize,
@@ -226,7 +222,7 @@ pub fn spf_normal(
 }
 
 pub fn spf_reverse(
-    graph: &Vec<Node>,
+    graph: &[Node],
     root: usize,
     full_path: bool,
     path_max: usize,
@@ -256,7 +252,7 @@ pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
         .collect::<HashSet<_>>() // Collect into HashSet instead of Vec
 }
 
-pub fn q_space_nodes(graph: &Vec<Node>, d: usize, x: usize) -> HashSet<usize> {
+pub fn q_space_nodes(graph: &[Node], d: usize, x: usize) -> HashSet<usize> {
     let spf = spf_reverse(graph, d, true, 0);
 
     spf.iter()
@@ -315,46 +311,6 @@ pub fn bench(n: usize, opt: &SpfOpt) {
     disp(&spf, opt.full_path)
 }
 
-pub fn ecmp_topology() -> Graph {
-    let mut graph = vec![
-        Node::new("N1", 0),
-        Node::new("N2", 1),
-        Node::new("N3", 2),
-        Node::new("N4", 3),
-        Node::new("N5", 4),
-    ];
-
-    let links = vec![
-        (0, 1, 10),
-        (0, 2, 10),
-        (1, 0, 10),
-        (1, 2, 5),
-        (1, 3, 10),
-        (2, 0, 10),
-        (2, 1, 5),
-        (2, 3, 10),
-        (3, 1, 10),
-        (3, 2, 10),
-        (3, 4, 10),
-        (4, 3, 10),
-    ];
-
-    for (from, to, cost) in links {
-        graph[from].olinks.push(Link::new(from, to, cost));
-    }
-    graph
-}
-
-pub fn ecmp(opt: &SpfOpt) {
-    let graph = ecmp_topology();
-
-    let now = time::Instant::now();
-    let spf = spf_normal(&graph, 0, opt.full_path, opt.path_max);
-    println!("ecmp {:?}", now.elapsed());
-
-    disp(&spf, opt.full_path)
-}
-
 pub fn pc_paths(graph: &Graph, s: usize, d: usize, x: usize) -> Vec<Vec<usize>> {
     let mut pc_graph: Vec<Node> = graph.to_owned(); // Clone only when necessary
 
@@ -397,10 +353,11 @@ pub fn intersect(
     let mut intersects = Vec::new();
 
     for id in pc_path {
-        let mut intersect = Intersect::default();
-        intersect.id = *id;
-        intersect.p = p_nodes.contains(id);
-        intersect.q = q_nodes.contains(id);
+        let intersect = Intersect {
+            id: *id,
+            p: p_nodes.contains(id),
+            q: q_nodes.contains(id),
+        };
         intersects.push(intersect);
     }
 
@@ -427,21 +384,19 @@ pub fn make_repair_list(pc_inter: &[Intersect], s: usize, d: usize) -> Vec<SrSeg
             } else {
                 sr_segments.push(SrSegment::AdjSid(s, inter.id));
             }
-        } else {
-            if p_mode {
-                if !inter.p {
-                    if let Some(prev_id) = prev_id {
-                        sr_segments.push(SrSegment::NodeSid(prev_id));
-                    }
-                    if !q_mode {
-                        sr_segments.push(SrSegment::AdjSid(prev_id.unwrap(), inter.id));
-                    }
-                    p_mode = false;
+        } else if p_mode {
+            if !inter.p {
+                if let Some(prev_id) = prev_id {
+                    sr_segments.push(SrSegment::NodeSid(prev_id));
                 }
-            } else if let Some(prev_id) = prev_id {
                 if !q_mode {
-                    sr_segments.push(SrSegment::AdjSid(prev_id, inter.id));
+                    sr_segments.push(SrSegment::AdjSid(prev_id.unwrap(), inter.id));
                 }
+                p_mode = false;
+            }
+        } else if let Some(prev_id) = prev_id {
+            if !q_mode {
+                sr_segments.push(SrSegment::AdjSid(prev_id, inter.id));
             }
         }
 
@@ -661,9 +616,9 @@ pub fn repair_list_print(graph: &Graph, repair_list: &Vec<SrSegment>) {
 }
 
 pub fn tilfa(graph: &Graph, s: usize, d: usize, x: usize) {
-    let p_nodes = p_space_nodes(&graph, s, x);
-    let q_nodes = q_space_nodes(&graph, d, x);
-    let mut pc_paths = pc_paths(&graph, s, d, x);
+    let p_nodes = p_space_nodes(graph, s, x);
+    let q_nodes = q_space_nodes(graph, d, x);
+    let mut pc_paths = pc_paths(graph, s, d, x);
 
     // P
     print!("P:");
@@ -878,16 +833,16 @@ pub fn tilfa2() {
     tilfa(&graph, s, d, x);
 }
 
-fn main() {
-    let opt = SpfOpt {
-        full_path: true,
-        path_max: 32,
-        srv6: false,
-        srmpls: true,
-    };
-    // ecmp(&opt);
-    bench(100, &opt);
-    // make_repair_test();
-    // tilfa1();
-    // tilfa2();
-}
+// fn main() {
+//     let opt = SpfOpt {
+//         full_path: true,
+//         path_max: 32,
+//         srv6: false,
+//         srmpls: true,
+//     };
+//     ecmp(&opt);
+//     // bench(100, &opt);
+//     // make_repair_test();
+//     // tilfa1();
+//     // tilfa2();
+// }
