@@ -59,7 +59,7 @@ pub fn ecmp() {
     let graph = ecmp_topology();
 
     let now = time::Instant::now();
-    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
+    let spf = spf(&graph, 0, &opt);
     println!("Time ecmp {:?}", now.elapsed());
 
     // node: 0 nexthops: 1

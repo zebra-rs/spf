@@ -41,7 +41,7 @@ pub fn matrix_topology(n: usize, opt: &SpfOpt) {
 
     let now = Instant::now();
     // Assuming `spf` now takes a reference to BTreeMap instead of Vec<Node>
-    let spf = spf(&graph, 0, opt.full_path, opt.path_max);
+    let spf = spf(&graph, 0, opt);
     println!("n:{} {:?}", n, now.elapsed());
 
     assert_eq!(spf.len(), 10000); // 100 x 100

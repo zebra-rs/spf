@@ -1,8 +1,21 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-// pub type Graph = Vec<Node>;
 pub type Graph = BTreeMap<usize, Node>;
+
+#[derive(Default)]
+pub struct SpfOpt {
+    pub full_path: bool,
+    pub path_max: usize,
+    pub srmpls: bool,
+    pub srv6: bool,
+}
+
+impl SpfOpt {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Node {
@@ -108,8 +121,7 @@ impl Path {
 pub fn spf_calc(
     graph: &Graph,
     root: usize,
-    full_path: bool,
-    path_max: usize,
+    opt: &SpfOpt,
     direct: &SpfDirect,
 ) -> BTreeMap<usize, Path> {
     let mut spf = BTreeMap::<usize, Path>::new();
@@ -167,14 +179,14 @@ pub fn spf_calc(
             if v.id == root {
                 let path = vec![root, c.id];
 
-                if full_path {
+                if opt.full_path {
                     c.paths.push(path);
                 } else {
                     c.nexthops.insert(path);
                 }
-            } else if full_path {
+            } else if opt.full_path {
                 for path in &v.paths {
-                    if path_max == 0 || c.paths.len() < path_max {
+                    if opt.path_max == 0 || c.paths.len() < opt.path_max {
                         let mut newpath = path.clone();
                         newpath.push(c.id);
                         c.paths.push(newpath);
@@ -182,7 +194,7 @@ pub fn spf_calc(
                 }
             } else {
                 for nhop in &v.nexthops {
-                    if path_max == 0 || c.nexthops.len() < path_max {
+                    if opt.path_max == 0 || c.nexthops.len() < opt.path_max {
                         let mut newnhop = nhop.clone();
                         if nhop.len() < 2 {
                             newnhop.push(c.id);
@@ -197,7 +209,7 @@ pub fn spf_calc(
                 bt.insert((c.cost, c.id), c.clone());
             } else if ocost == c.cost {
                 if let Some(v) = bt.get_mut(&(c.cost, c.id)) {
-                    if full_path {
+                    if opt.full_path {
                         v.paths = c.paths.clone();
                     } else {
                         v.nexthops = c.nexthops.clone();
@@ -212,17 +224,12 @@ pub fn spf_calc(
     spf
 }
 
-pub fn spf(graph: &Graph, root: usize, full_path: bool, path_max: usize) -> BTreeMap<usize, Path> {
-    spf_calc(graph, root, full_path, path_max, &SpfDirect::Normal)
+pub fn spf(graph: &Graph, root: usize, opt: &SpfOpt) -> BTreeMap<usize, Path> {
+    spf_calc(graph, root, opt, &SpfDirect::Normal)
 }
 
-pub fn spf_reverse(
-    graph: &Graph,
-    root: usize,
-    full_path: bool,
-    path_max: usize,
-) -> BTreeMap<usize, Path> {
-    spf_calc(graph, root, full_path, path_max, &SpfDirect::Reverse)
+pub fn spf_reverse(graph: &Graph, root: usize, opt: &SpfOpt) -> BTreeMap<usize, Path> {
+    spf_calc(graph, root, opt, &SpfDirect::Reverse)
 }
 
 pub fn path_has_x(path: &[usize], x: usize) -> bool {
@@ -230,7 +237,7 @@ pub fn path_has_x(path: &[usize], x: usize) -> bool {
 }
 
 pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
-    let spf = spf(graph, s, true, 0);
+    let spf = spf(graph, s, &SpfOpt::default());
 
     spf.iter()
         .filter_map(|(node, path)| {
@@ -248,7 +255,7 @@ pub fn p_space_nodes(graph: &Graph, s: usize, x: usize) -> HashSet<usize> {
 }
 
 pub fn q_space_nodes(graph: &Graph, d: usize, x: usize) -> HashSet<usize> {
-    let spf = spf_reverse(graph, d, true, 0);
+    let spf = spf_reverse(graph, d, &SpfOpt::default());
 
     spf.iter()
         .filter_map(|(node, path)| {
@@ -272,23 +279,9 @@ pub fn pc_paths(graph: &Graph, s: usize, d: usize, x: usize) -> Vec<Vec<usize>> 
         x_node.is_disabled = true;
     }
 
-    spf(&pc_graph, s, true, 0)
+    spf(&pc_graph, s, &SpfOpt::default())
         .remove(&d)
         .map_or_else(Vec::new, |data| data.paths)
-}
-
-#[derive(Default)]
-pub struct SpfOpt {
-    pub full_path: bool,
-    pub path_max: usize,
-    pub srmpls: bool,
-    pub srv6: bool,
-}
-
-impl SpfOpt {
-    pub fn new() -> Self {
-        Self::default()
-    }
 }
 
 #[derive(Debug, Default, Clone)]
